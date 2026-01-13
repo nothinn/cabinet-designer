@@ -1,0 +1,79 @@
+{
+    "total_height": 240.0,
+    "bottom_height": 80.0,
+    "plinth_height": 8.0,
+    "columns": [
+        {
+            "width": 60,
+            "shelf_heights": [
+                120.0,
+                160.0,
+                200.0
+            ],
+            "vertical_dividers": [],
+            "has_top": true,
+            "merge_right": false,
+            "drawers": []
+        },
+        {
+            "width": 60,
+            "shelf_heights": [
+                120.0,
+                160.0,
+                200.0
+            ],
+            "vertical_dividers": [],
+            "has_top": true,
+            "merge_right": false,
+            "drawers": []
+        },
+        {
+            "width": 60,
+            "shelf_heights": [
+                120.0,
+                160.0,
+                200.0
+            ],
+            "vertical_dividers": [],
+            "has_top": true,
+            "merge_right": false,
+            "drawers": []
+        },
+        {
+            "width": 60,
+            "shelf_heights": [
+                120.0,
+                160.0,
+                200.0
+            ],
+            "vertical_dividers": [],
+            "has_top": true,
+            "merge_right": false,
+            "drawers": []
+        },
+        {
+            "width": 60,
+            "shelf_heights": [
+                120.0,
+                160.0,
+                200.0
+            ],
+            "vertical_dividers": [],
+            "has_top": true,
+            "merge_right": false,
+            "drawers": []
+        },
+        {
+            "width": 60,
+            "shelf_heights": [
+                120.0,
+                160.0,
+                200.0
+            ],
+            "vertical_dividers": [],
+            "has_top": true,
+            "merge_right": false,
+            "drawers": []
+        }
+    ]
+}

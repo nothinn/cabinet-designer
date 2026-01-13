@@ -1,0 +1,46 @@
+{
+    "total_height": 240.0,
+    "bottom_height": 80.0,
+    "plinth_height": 12.0,
+    "columns": [
+        {
+            "width": 80,
+            "shelf_heights": [
+                120.0,
+                160.0,
+                200.0
+            ],
+            "vertical_dividers": [
+                1
+            ],
+            "has_top": true,
+            "merge_right": false,
+            "drawers": []
+        },
+        {
+            "width": 60,
+            "shelf_heights": [
+                133.3,
+                186.7
+            ],
+            "vertical_dividers": [],
+            "has_top": false,
+            "merge_right": false,
+            "drawers": []
+        },
+        {
+            "width": 80,
+            "shelf_heights": [
+                120.0,
+                160.0,
+                200.0
+            ],
+            "vertical_dividers": [
+                2
+            ],
+            "has_top": true,
+            "merge_right": false,
+            "drawers": []
+        }
+    ]
+}

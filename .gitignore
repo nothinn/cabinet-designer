@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.json
+*.png
+venv/
+cabinet_variants/
+cabinet_experiments_360/
+cabinet_options_50/
+debug_*.py
+.temp_*.json
+!templates/*.json
+!templates/*.png
