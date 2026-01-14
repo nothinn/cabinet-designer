@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cabinet Designer (PyScript)</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background: #f0f0f0; }
+        .sidebar { width: 400px; background: #fff; padding: 20px; overflow-y: auto; border-right: 1px solid #ccc; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        .preview { flex: 1; display: flex; align-items: center; justify-content: center; background: #e0e0e0; padding: 20px; }
+        .preview img { max-width: 100%; max-height: 100%; box-shadow: 0 0 20px rgba(0,0,0,0.2); background: white; }
+        
+        h1, h2, h3 { margin-top: 0; }
+        .card { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; background: #fafafa; }
+        .card h3 { margin-bottom: 5px; font-size: 1.1em; display: flex; justify-content: space-between; }
+        
+        .row { display: flex; gap: 10px; margin-bottom: 5px; align-items: center; }
+        button { cursor: pointer; padding: 5px 10px; }
+        input[type="number"] { width: 60px; padding: 5px; }
+        
+        .btn-danger { background: #ffdddd; border: 1px solid #ffaaaa; color: #a00; }
+        .btn-primary { background: #ddf; border: 1px solid #aab; color: #00a; }
+        
+        .controls-group { margin-top: 5px; padding-top: 5px; border-top: 1px solid #eee; }
+        .badge { display: inline-block; padding: 2px 5px; font-size: 0.8em; border-radius: 3px; background: #eee; }
+        .badge.on { background: #dca; }
+        
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 2em; }
+    </style>
+</head>
+<body>
+
+<div id="loading">Loading PyScript Environment...</div>
+
+<div class="sidebar" id="sidebar-content">
+    <!-- Content will be injected by Python -->
+</div>
+
+<div class="preview">
+    <img id="preview-image" alt="Cabinet Preview" src="">
+</div>
+
+<script type="py" config="pyscript.json">
+    import js
+    from pyscript import document
+    import io
+    import base64
+    from simple_designer import CabinetDesigner
+    from render_cabinet import render_cabinet_to_bytes
+
+    # --- Initialize Designer ---
+    designer = CabinetDesigner()
+    # Default start
+    if not designer.columns:
+        designer.add_column(60)
+        designer.add_column(80)
+
+    def update_ui():
+        # Render image
+        img_bytes = render_cabinet_to_bytes(designer)
+        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+        document.getElementById("preview-image").src = f"data:image/png;base64,{img_base64}"
+        
+        # Render Sidebar HTML
+        html = generate_sidebar_html()
+        sidebar = document.getElementById("sidebar-content")
+        sidebar.innerHTML = html
+        
+        # Re-attach events (naive approach: re-rendering HTML kills listeners, so we use inline onclicks proxying to python)
+        # However, PyScript allows cleaner event handling if we build DOM elements. 
+        # But for quick porting of the Jinja template, string generation is easier.
+        # We will use the 'py-click' attribute approach if available, or just global expose.
+
+    def generate_sidebar_html():
+        html = "<h1>Cabinet Designer</h1>"
+        
+        # Global Settings
+        html += f"""
+        <div class="card">
+            <h3>Global Settings</h3>
+            <div class="row">
+                <label>Total Height (cm):</label>
+                <input type="number" id="total_height" value="{designer.total_height}" step="0.1">
+                <button py-click="set_height">Set</button>
+            </div>
+            <div class="row">
+                <label>Plinth Height (cm):</label>
+                <input type="number" id="plinth_height" value="{designer.plinth_height}" step="0.1">
+                <button py-click="set_plinth">Set</button>
+            </div>
+            <div class="row" style="margin-top:10px;">
+                <button py-click="add_col_40">+ 40cm Col</button>
+                <button py-click="add_col_60">+ 60cm Col</button>
+                <button py-click="add_col_80">+ 80cm Col</button>
+            </div>
+            <div style="margin-top:10px;">
+                 <button class="btn-danger" py-click="reset_all">Reset All</button>
+            </div>
+        </div>
+        <h2>Columns</h2>
+        """
+        
+        for i, col in enumerate(designer.columns):
+            is_merged_target = (i > 0 and designer.columns[i-1]['merge_right'])
+            style = "background: #fdfdfd; opacity: 0.9;" if is_merged_target else ""
+            badge = '<span class="badge on" style="margin-left:10px; font-size: 0.8em; vertical-align: middle;">MERGED &larr;</span>' if is_merged_target else ''
+            
+            html += f'<div class="card" style="{style}">'
+            html += f'<h3>Column #{i + 1} ({col["width"]}cm) {badge}<div>'
+            
+            # Move/Delete Controls
+            disabled_up = 'disabled' if i == 0 else ''
+            disabled_down = 'disabled' if i == len(designer.columns)-1 else ''
+            html += f'<button py-click="move_col_left_{i}" {disabled_up}>&uarr;</button>'
+            html += f'<button py-click="move_col_right_{i}" {disabled_down}>&darr;</button>'
+            html += f'<button class="btn-danger" py-click="remove_col_{i}">X</button>'
+            html += '</div></h3>'
+            
+            # Top/Merge Controls
+            top_state = 'ON' if col['has_top'] else 'OFF'
+            merge_state = 'YES' if col['merge_right'] else 'NO'
+            disabled_top = 'disabled' if is_merged_target else ''
+            
+            html += '<div class="controls-group">'
+            html += f'<button class="btn-primary" py-click="toggle_top_{i}" {disabled_top}>Top Section: {top_state}</button> '
+            if i < len(designer.columns) - 1:
+                html += f'<button py-click="toggle_merge_{i}">Merge Right: {merge_state}</button>'
+            html += '</div>'
+            
+            # Drawers
+            drawers_count = len(col['drawers'])
+            drawer_h = col['drawers'][0]['height'] if col['drawers'] else 20.0
+            html += f"""
+            <div class="controls-group">
+                <strong>Drawers:</strong> {drawers_count}
+                <div class="row">
+                    <label>Count:</label>
+                    <input type="number" id="drawer_count_{i}" value="{drawers_count}" min="0" max="5" style="width:40px;">
+                    <label>H:</label>
+                    <input type="number" id="drawer_h_{i}" value="{drawer_h}" step="0.1" style="width:50px;">
+                    <button py-click="set_drawers_{i}">Set</button>
+                </div>
+            </div>
+            """
+            
+            if is_merged_target:
+                html += f"""<div class="controls-group" style="color: #888; font-style: italic; padding: 10px 0;">
+                    This column's upper section is merged with the column to the left. 
+                    Shelves and compartments are controlled by Column #{i}.
+                </div>"""
+            else:
+                # Shelves
+                html += '<div class="controls-group"><strong>Shelves:</strong>'
+                html += '<table style="width:100%; border-collapse: collapse; font-size: 0.9em;">'
+                if not col['shelf_heights']:
+                    html += '<tr><td>No shelves</td></tr>'
+                else:
+                    for j, h in enumerate(col['shelf_heights']):
+                        html += f"""
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 3px;">#{j+1}</td>
+                            <td style="padding: 3px;"><strong>{round(h, 1)}</strong> cm</td>
+                            <td style="text-align: right; padding: 3px;">
+                                <button style="padding: 2px 5px;" py-click="shelf_up_{i}_{j}">&uarr;</button>
+                                <button style="padding: 2px 5px;" py-click="shelf_down_{i}_{j}">&darr;</button>
+                                <button class="btn-danger" style="padding: 2px 5px;" py-click="shelf_del_{i}_{j}">X</button>
+                            </td>
+                        </tr>
+                        """
+                html += '</table>'
+                
+                # Add/Reset Shelves
+                html += f"""
+                <div style="margin-top: 5px;">
+                    <div class="row" style="margin-bottom:2px;">
+                        <label style="font-size:0.9em;">Spaces:</label>
+                        <input type="number" id="shelf_spaces_{i}" value="3" min="1" max="10" style="width:30px; padding: 2px;">
+                        <button style="padding: 2px 5px;" py-click="reset_shelves_{i}">Reset Even</button>
+                    </div>
+                    <div class="row">
+                        <input type="number" id="add_shelf_h_{i}" step="0.1" placeholder="H (cm)" style="width:50px; padding: 2px;">
+                        <button style="padding: 2px 5px;" py-click="add_shelf_{i}">Add</button>
+                    </div>
+                </div>
+                </div>
+                """
+                
+                # Dividers
+                html += '<div class="controls-group"><strong>Vertical Dividers (Compartments):</strong>'
+                html += '<div style="font-size: 0.9em; margin-top: 5px;">'
+                spaces = len(col['shelf_heights']) + 1
+                for space_id in range(spaces):
+                    label = 'Top' if space_id == spaces-1 else 'Mid' if space_id > 0 else 'Bot'
+                    is_active = space_id in col['vertical_dividers']
+                    btn_style = 'background-color: #dca;' if is_active else ''
+                    btn_text = 'DIVIDER ON' if is_active else 'Toggle'
+                    html += f"""
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                        <span>Space {space_id} ({label}):</span>
+                        <button style="padding: 2px 5px; {btn_style}" py-click="toggle_div_{i}_{space_id}">{btn_text}</button>
+                    </div>
+                    """
+                html += '</div></div>'
+            
+            html += '</div>' # End Card
+            
+        return html
+
+    # --- Event Handlers ---
+    # Since PyScript's py-click looks for global functions, we define dynamic dispatchers or factory functions?
+    # Actually, py-click="func" calls `func(event)`.
+    # We can't easily generate dynamic function names like `move_col_left_0` in Python loop and bind them globally 
+    # unless we use `globals()`.
+    
+    # Let's generate the handlers dynamically
+    
+    def set_height(e):
+        val = document.getElementById("total_height").value
+        if val: designer.set_height(float(val)); update_ui()
+
+    def set_plinth(e):
+        val = document.getElementById("plinth_height").value
+        if val: designer.set_plinth_height(float(val)); update_ui()
+
+    def add_col_40(e): designer.add_column(40); update_ui()
+    def add_col_60(e): designer.add_column(60); update_ui()
+    def add_col_80(e): designer.add_column(80); update_ui()
+    def reset_all(e): 
+        global designer
+        designer = CabinetDesigner()
+        designer.add_column(60)
+        designer.add_column(80)
+        update_ui()
+
+    # Dynamic handler generation
+    # We need to register these functions into the global scope so py-click can find them.
+    # A cleaner way in PyScript is usually to use a single router function, 
+    # but passing arguments in py-click is tricky (it passes the event).
+    # We can embed the ID in the button ID and parse it, OR create wrappers.
+    
+    # Strategy: Create a Proxy class that handles attribute access by returning a partial? 
+    # No, PyScript evaluates the string name.
+    
+    # Let's populate globals() with the needed wrappers.
+    
+    def create_col_handlers():
+        # Clean up old handlers? Hard to track. 
+        # But we can overwrite.
+        g = globals()
+        
+        for i in range(len(designer.columns)):
+            g[f'move_col_left_{i}'] = lambda e, idx=i: (designer.swap_columns(idx, idx-1), update_ui())
+            g[f'move_col_right_{i}'] = lambda e, idx=i: (designer.swap_columns(idx, idx+1), update_ui())
+            g[f'remove_col_{i}'] = lambda e, idx=i: (designer.remove_column(idx), update_ui())
+            g[f'toggle_top_{i}'] = lambda e, idx=i: (designer.toggle_top(idx), update_ui())
+            g[f'toggle_merge_{i}'] = lambda e, idx=i: (designer.toggle_merge(idx), update_ui())
+            
+            g[f'set_drawers_{i}'] = lambda e, idx=i: (
+                designer.configure_drawers(idx, int(document.getElementById(f"drawer_count_{idx}").value), float(document.getElementById(f"drawer_h_{idx}").value)), 
+                update_ui()
+            )
+            
+            g[f'reset_shelves_{i}'] = lambda e, idx=i: (
+                designer.set_shelves_count(idx, int(document.getElementById(f"shelf_spaces_{idx}").value)),
+                update_ui()
+            )
+            
+            g[f'add_shelf_{i}'] = lambda e, idx=i: (
+                designer.add_shelf_at_height(idx, float(document.getElementById(f"add_shelf_h_{idx}").value)) if document.getElementById(f"add_shelf_h_{idx}").value else None,
+                update_ui()
+            )
+            
+            # Per-shelf handlers
+            col = designer.columns[i]
+            for j in range(len(col['shelf_heights'])):
+                g[f'shelf_up_{i}_{j}'] = lambda e, c=i, s=j: (designer.move_shelf(c, s, 5), update_ui())
+                g[f'shelf_down_{i}_{j}'] = lambda e, c=i, s=j: (designer.move_shelf(c, s, -5), update_ui())
+                g[f'shelf_del_{i}_{j}'] = lambda e, c=i, s=j: (designer.remove_shelf_by_index(c, s), update_ui())
+
+            # Dividers
+            spaces = len(col['shelf_heights']) + 1
+            for sp in range(spaces):
+                 g[f'toggle_div_{i}_{sp}'] = lambda e, c=i, s=sp: (designer.subdivide_compartment(c, s), update_ui())
+
+    # Override update_ui to also update handlers
+    orig_update = update_ui
+    def update_ui_wrapper():
+        create_col_handlers()
+        orig_update()
+        # Save scroll?
+        sidebar = document.getElementById("sidebar-content")
+        # Scroll restoration logic would go here if needed
+        
+    update_ui = update_ui_wrapper
+
+    # Initial load
+    update_ui()
+    document.getElementById("loading").style.display = "none"
+
+</script>
+
+</body>
+</html>
