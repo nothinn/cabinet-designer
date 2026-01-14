@@ -14,16 +14,20 @@ if not designer.columns:
     designer.add_column(80)
 
 TEMP_CONFIG = "temp_web_config.json"
+SAVES_DIR = "saved_designs"
 STATIC_DIR = "static"
 RENDER_OUTPUT = os.path.join(STATIC_DIR, "cabinet_preview.png")
 
-# Ensure static dir exists
+# Ensure static and saves dirs exist
 if not os.path.exists(STATIC_DIR):
     os.makedirs(STATIC_DIR)
+if not os.path.exists(SAVES_DIR):
+    os.makedirs(SAVES_DIR)
 
 @app.route('/')
 def index():
-    return render_template('index.html', designer=designer, enumerate=enumerate, len=len, time=time)
+    saved_files = [f for f in os.listdir(SAVES_DIR) if f.endswith('.json')]
+    return render_template('index.html', designer=designer, enumerate=enumerate, len=len, time=time, saved_files=saved_files)
 
 @app.route('/image')
 def image():
@@ -33,6 +37,25 @@ def image():
     render_cabinet(TEMP_CONFIG, RENDER_OUTPUT)
     # Return file with cache busting is handled in frontend by adding query param
     return send_file(RENDER_OUTPUT, mimetype='image/png')
+
+@app.route('/api/save', methods=['POST'])
+def save():
+    filename = request.form.get('filename')
+    if filename:
+        if not filename.endswith('.json'):
+            filename += '.json'
+        filepath = os.path.join(SAVES_DIR, filename)
+        designer.save_config(filepath)
+    return redirect(url_for('index'))
+
+@app.route('/api/load', methods=['POST'])
+def load():
+    filename = request.form.get('filename')
+    if filename:
+        filepath = os.path.join(SAVES_DIR, filename)
+        if os.path.exists(filepath):
+            designer.load_config(filepath)
+    return redirect(url_for('index'))
 
 @app.route('/api/reset', methods=['POST'])
 def reset():
