@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cabinet Designer Web UI</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background: #f0f0f0; }
+        .sidebar { width: 400px; background: #fff; padding: 20px; overflow-y: auto; border-right: 1px solid #ccc; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        .preview { flex: 1; display: flex; align-items: center; justify-content: center; background: #e0e0e0; padding: 20px; }
+        .preview img { max-width: 100%; max-height: 100%; box-shadow: 0 0 20px rgba(0,0,0,0.2); background: white; }
+        
+        h1, h2, h3 { margin-top: 0; }
+        .card { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; background: #fafafa; }
+        .card h3 { margin-bottom: 5px; font-size: 1.1em; display: flex; justify-content: space-between; }
+        
+        .row { display: flex; gap: 10px; margin-bottom: 5px; align-items: center; }
+        button { cursor: pointer; padding: 5px 10px; }
+        input[type="number"] { width: 60px; padding: 5px; }
+        
+        .btn-danger { background: #ffdddd; border: 1px solid #ffaaaa; color: #a00; }
+        .btn-primary { background: #ddf; border: 1px solid #aab; color: #00a; }
+        
+        .controls-group { margin-top: 5px; padding-top: 5px; border-top: 1px solid #eee; }
+        .badge { display: inline-block; padding: 2px 5px; font-size: 0.8em; border-radius: 3px; background: #eee; }
+        .badge.on { background: #dca; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h1>Cabinet Designer</h1>
+    
+    <div class="card">
+        <h3>Global Settings</h3>
+        <form action="{{ url_for('set_height') }}" method="post" class="row">
+            <label>Total Height (cm):</label>
+            <input type="number" name="height" value="{{ designer.total_height }}" step="0.1">
+            <button type="submit">Set</button>
+        </form>
+        <div class="row" style="margin-top:10px;">
+            <form action="{{ url_for('add_column') }}" method="post" style="display:inline;">
+                <input type="hidden" name="width" value="40">
+                <button type="submit">+ 40cm Col</button>
+            </form>
+            <form action="{{ url_for('add_column') }}" method="post" style="display:inline;">
+                <input type="hidden" name="width" value="60">
+                <button type="submit">+ 60cm Col</button>
+            </form>
+            <form action="{{ url_for('add_column') }}" method="post" style="display:inline;">
+                <input type="hidden" name="width" value="80">
+                <button type="submit">+ 80cm Col</button>
+            </form>
+        </div>
+        <form action="{{ url_for('reset') }}" method="post" style="margin-top:10px;">
+             <button type="submit" class="btn-danger">Reset All</button>
+        </form>
+    </div>
+
+    <h2>Columns</h2>
+    {% for i, col in enumerate(designer.columns) %}
+    <div class="card">
+        <h3>Column #{{ i + 1 }} ({{ col.width }}cm)
+            <div>
+                <form action="{{ url_for('move_column') }}" method="post" style="display:inline;">
+                    <input type="hidden" name="index" value="{{ i }}">
+                    <input type="hidden" name="direction" value="left">
+                    <button type="submit" {{ 'disabled' if i == 0 }}>&uarr;</button>
+                </form>
+                <form action="{{ url_for('move_column') }}" method="post" style="display:inline;">
+                    <input type="hidden" name="index" value="{{ i }}">
+                    <input type="hidden" name="direction" value="right">
+                    <button type="submit" {{ 'disabled' if i == len(designer.columns)-1 }}>&darr;</button>
+                </form>
+                <form action="{{ url_for('remove_column') }}" method="post" style="display:inline;">
+                    <input type="hidden" name="index" value="{{ i }}">
+                    <button type="submit" class="btn-danger">X</button>
+                </form>
+            </div>
+        </h3>
+        
+        <div class="controls-group">
+            <form action="{{ url_for('toggle_top') }}" method="post" style="display:inline;">
+                <input type="hidden" name="index" value="{{ i }}">
+                <button type="submit" class="btn-primary">Top Section: {{ 'ON' if col.has_top else 'OFF' }}</button>
+            </form>
+            {% if i < len(designer.columns) - 1 %}
+            <form action="{{ url_for('toggle_merge') }}" method="post" style="display:inline;">
+                <input type="hidden" name="index" value="{{ i }}">
+                <button type="submit">Merge Right: {{ 'YES' if col.merge_right else 'NO' }}</button>
+            </form>
+            {% endif %}
+        </div>
+
+        <div class="controls-group">
+            <strong>Drawers:</strong> {{ len(col.drawers) }}
+            <form action="{{ url_for('configure_drawers') }}" method="post" class="row">
+                <input type="hidden" name="index" value="{{ i }}">
+                <input type="number" name="count" value="{{ len(col.drawers) }}" min="0" max="5">
+                <button type="submit">Set Count</button>
+            </form>
+        </div>
+
+        <div class="controls-group">
+            <strong>Shelves:</strong>
+            <ul style="margin: 5px 0; padding-left: 20px;">
+                {% if not col.shelf_heights %}
+                    <li>No shelves</li>
+                {% else %}
+                    {% for h in col.shelf_heights %}
+                        <li>{{ h }} cm</li>
+                    {% endfor %}
+                {% endif %}
+            </ul>
+            
+            <form action="{{ url_for('set_shelves_count') }}" method="post" class="row">
+                <input type="hidden" name="index" value="{{ i }}">
+                <label>Spaces:</label>
+                <input type="number" name="count" value="3" min="1" max="10" style="width:40px;">
+                <button type="submit">Reset Even</button>
+            </form>
+            
+            <form action="{{ url_for('add_shelf') }}" method="post" class="row">
+                <input type="hidden" name="index" value="{{ i }}">
+                <input type="number" name="height" step="0.1" placeholder="H (cm)" style="width:60px;">
+                <button type="submit">Add at H</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="preview">
+    <img src="{{ url_for('image') }}?t={{ time.time() }}" alt="Cabinet Preview">
+</div>
+
+</body>
+</html>
