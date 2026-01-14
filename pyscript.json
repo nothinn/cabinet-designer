@@ -1,3 +1,7 @@
 {
-    "packages": ["Pillow"]
+    "packages": ["Pillow"],
+    "files": {
+        "simple_designer.py": "./simple_designer.py",
+        "render_cabinet.py": "./render_cabinet.py"
+    }
 }
