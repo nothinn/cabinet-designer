@@ -123,6 +123,15 @@ def toggle_merge():
         pass
     return redirect(url_for('index'))
 
+@app.route('/api/set_plinth_height', methods=['POST'])
+def set_plinth_height():
+    try:
+        h = float(request.form.get('height'))
+        designer.set_plinth_height(h)
+    except ValueError:
+        pass
+    return redirect(url_for('index'))
+
 @app.route('/api/set_shelves_count', methods=['POST'])
 def set_shelves_count():
     try:
@@ -143,13 +152,44 @@ def add_shelf():
         pass
     return redirect(url_for('index'))
 
+@app.route('/api/remove_shelf', methods=['POST'])
+def remove_shelf():
+    try:
+        col_idx = int(request.form.get('col_index'))
+        shelf_idx = int(request.form.get('shelf_index'))
+        designer.remove_shelf_by_index(col_idx, shelf_idx)
+    except ValueError:
+        pass
+    return redirect(url_for('index'))
+
+@app.route('/api/move_shelf', methods=['POST'])
+def move_shelf():
+    try:
+        col_idx = int(request.form.get('col_index'))
+        shelf_idx = int(request.form.get('shelf_index'))
+        amount = float(request.form.get('amount'))
+        designer.move_shelf(col_idx, shelf_idx, amount)
+    except ValueError:
+        pass
+    return redirect(url_for('index'))
+
+@app.route('/api/subdivide_compartment', methods=['POST'])
+def subdivide_compartment():
+    try:
+        col_idx = int(request.form.get('col_index'))
+        space_id = int(request.form.get('space_id'))
+        designer.subdivide_compartment(col_idx, space_id)
+    except ValueError:
+        pass
+    return redirect(url_for('index'))
+
 @app.route('/api/configure_drawers', methods=['POST'])
 def configure_drawers():
     try:
         idx = int(request.form.get('index'))
         count = int(request.form.get('count'))
-        # Optional height param could be added, defaulting to 20
-        designer.configure_drawers(idx, count, 20.0)
+        height = float(request.form.get('height', 20.0))
+        designer.configure_drawers(idx, count, height)
     except ValueError:
         pass
     return redirect(url_for('index'))

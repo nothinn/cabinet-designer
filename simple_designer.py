@@ -91,6 +91,13 @@ class CabinetDesigner:
         if 0 <= index < len(self.columns) - 1:
             self.columns[index]['merge_right'] = not self.columns[index]['merge_right']
             state = "MERGED" if self.columns[index]['merge_right'] else "SEPARATED"
+            
+            # If merged, clear the right column's shelves/dividers as they are now governed by the left one
+            if self.columns[index]['merge_right']:
+                right_col = self.columns[index+1]
+                right_col['shelf_heights'] = []
+                right_col['vertical_dividers'] = []
+                
             print(f"Divider between Column {index+1} and {index+2} is now {state}.")
         else:
             print("Invalid column index for merge (cannot merge last column to the right).")
