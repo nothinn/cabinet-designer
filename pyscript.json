@@ -2,6 +2,10 @@
     "packages": ["Pillow"],
     "files": {
         "simple_designer.py": "./simple_designer.py",
-        "render_cabinet.py": "./render_cabinet.py"
+        "render_cabinet.py": "./render_cabinet.py",
+        "templates/asymmetric_low.json": "./templates/asymmetric_low.json",
+        "templates/basic_360.json": "./templates/basic_360.json",
+        "templates/library_wall.json": "./templates/library_wall.json",
+        "templates/modern_display.json": "./templates/modern_display.json"
     }
 }

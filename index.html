@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cabinet Designer (PyScript)</title>
+    <title>Cabinet Designer (PyScript SVG)</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background: #f0f0f0; }
         .sidebar { width: 400px; background: #fff; padding: 20px; overflow-y: auto; border-right: 1px solid #ccc; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
-        .preview { flex: 1; display: flex; align-items: center; justify-content: center; background: #e0e0e0; padding: 20px; }
-        .preview img { max-width: 100%; max-height: 100%; box-shadow: 0 0 20px rgba(0,0,0,0.2); background: white; }
+        .preview { flex: 1; display: flex; align-items: center; justify-content: center; background: #e0e0e0; padding: 20px; overflow: auto; }
+        .preview svg { max-width: 100%; max-height: 100%; box-shadow: 0 0 20px rgba(0,0,0,0.2); background: white; }
         
         h1, h2, h3 { margin-top: 0; }
         .card { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; background: #fafafa; }
@@ -18,10 +18,11 @@
         
         .row { display: flex; gap: 10px; margin-bottom: 5px; align-items: center; }
         button { cursor: pointer; padding: 5px 10px; }
-        input[type="number"] { width: 60px; padding: 5px; }
+        input[type="number"], input[type="text"] { width: 60px; padding: 5px; }
         
         .btn-danger { background: #ffdddd; border: 1px solid #ffaaaa; color: #a00; }
         .btn-primary { background: #ddf; border: 1px solid #aab; color: #00a; }
+        .btn-success { background: #dfd; border: 1px solid #aba; color: #060; }
         
         .controls-group { margin-top: 5px; padding-top: 5px; border-top: 1px solid #eee; }
         .badge { display: inline-block; padding: 2px 5px; font-size: 0.8em; border-radius: 3px; background: #eee; }
@@ -38,44 +39,62 @@
     <!-- Content will be injected by Python -->
 </div>
 
-<div class="preview">
-    <img id="preview-image" alt="Cabinet Preview" src="">
+<div class="preview" id="preview-container">
+    <!-- SVG will be injected here -->
 </div>
 
 <script type="py" config="pyscript.json">
     import js
-    from pyscript import document
+    import json
+    from pyscript import document, window
+    from pyodide.ffi import create_proxy
     import io
-    import base64
     from simple_designer import CabinetDesigner
-    from render_cabinet import render_cabinet_to_bytes
+    from render_cabinet import render_cabinet_to_svg
 
     # --- Initialize Designer ---
     designer = CabinetDesigner()
-    # Default start
     if not designer.columns:
         designer.add_column(60)
         designer.add_column(80)
 
     def update_ui():
-        # Render image
-        img_bytes = render_cabinet_to_bytes(designer)
-        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
-        document.getElementById("preview-image").src = f"data:image/png;base64,{img_base64}"
+        # Render SVG
+        svg_content = render_cabinet_to_svg(designer)
+        document.getElementById("preview-container").innerHTML = svg_content
         
         # Render Sidebar HTML
         html = generate_sidebar_html()
         sidebar = document.getElementById("sidebar-content")
         sidebar.innerHTML = html
-        
-        # Re-attach events (naive approach: re-rendering HTML kills listeners, so we use inline onclicks proxying to python)
-        # However, PyScript allows cleaner event handling if we build DOM elements. 
-        # But for quick porting of the Jinja template, string generation is easier.
-        # We will use the 'py-click' attribute approach if available, or just global expose.
 
     def generate_sidebar_html():
         html = "<h1>Cabinet Designer</h1>"
         
+        # Save / Load / Templates
+        html += """
+        <div class="card">
+            <h3>Files & Templates</h3>
+            <div class="row">
+                <select id="template_select" style="flex:1;">
+                    <option value="" disabled selected>Load Template...</option>
+                    <option value="asymmetric_low">Asymmetric Low</option>
+                    <option value="basic_360">Basic 360</option>
+                    <option value="library_wall">Library Wall</option>
+                    <option value="modern_display">Modern Display</option>
+                </select>
+                <button py-click="load_template">Load</button>
+            </div>
+            <div class="row" style="margin-top:10px;">
+                <button class="btn-success" py-click="save_to_file" style="flex:1;">Save to File</button>
+            </div>
+            <div class="row">
+                <input type="file" id="file_loader" style="display:none;">
+                <button py-click="trigger_file_load" style="flex:1;">Load from File</button>
+            </div>
+        </div>
+        """
+
         # Global Settings
         html += f"""
         <div class="card">
@@ -209,12 +228,6 @@
         return html
 
     # --- Event Handlers ---
-    # Since PyScript's py-click looks for global functions, we define dynamic dispatchers or factory functions?
-    # Actually, py-click="func" calls `func(event)`.
-    # We can't easily generate dynamic function names like `move_col_left_0` in Python loop and bind them globally 
-    # unless we use `globals()`.
-    
-    # Let's generate the handlers dynamically
     
     def set_height(e):
         val = document.getElementById("total_height").value
@@ -234,22 +247,56 @@
         designer.add_column(80)
         update_ui()
 
-    # Dynamic handler generation
-    # We need to register these functions into the global scope so py-click can find them.
-    # A cleaner way in PyScript is usually to use a single router function, 
-    # but passing arguments in py-click is tricky (it passes the event).
-    # We can embed the ID in the button ID and parse it, OR create wrappers.
-    
-    # Strategy: Create a Proxy class that handles attribute access by returning a partial? 
-    # No, PyScript evaluates the string name.
-    
-    # Let's populate globals() with the needed wrappers.
-    
+    def load_template(e):
+        t_name = document.getElementById("template_select").value
+        if t_name:
+            filepath = f"templates/{t_name}.json"
+            designer.load_config(filepath)
+            update_ui()
+
+    def save_to_file(e):
+        data = {
+            'total_height': designer.total_height,
+            'bottom_height': designer.bottom_height,
+            'plinth_height': designer.plinth_height,
+            'columns': designer.columns
+        }
+        json_str = json.dumps(data, indent=4)
+        blob = window.Blob.new([json_str], {type: 'application/json'})
+        url = window.URL.createObjectURL(blob)
+        link = document.createElement('a')
+        link.href = url
+        link.download = "cabinet_design.json"
+        link.click()
+        window.URL.revokeObjectURL(url)
+
+    def trigger_file_load(e):
+        document.getElementById("file_loader").click()
+
+    async def handle_file_upload(e):
+        file_list = e.target.files
+        if len(file_list) > 0:
+            file = file_list.item(0)
+            text = await file.text()
+            try:
+                # We need a temp file because load_config expects a path
+                # Or just update load_config to accept a dict. 
+                # Let's just do a manual load for now to be safe.
+                data = json.loads(text)
+                designer.total_height = data.get('total_height', 240.0)
+                designer.bottom_height = data.get('bottom_height', 80.0)
+                designer.plinth_height = data.get('plinth_height', 8.0)
+                designer.columns = data.get('columns', [])
+                update_ui()
+            except Exception as ex:
+                js.alert(f"Error loading file: {ex}")
+
+    # Attach file upload handler (async)
+    file_upload_proxy = create_proxy(handle_file_upload)
+    document.getElementById("file_loader").addEventListener("change", file_upload_proxy)
+
     def create_col_handlers():
-        # Clean up old handlers? Hard to track. 
-        # But we can overwrite.
         g = globals()
-        
         for i in range(len(designer.columns)):
             g[f'move_col_left_{i}'] = lambda e, idx=i: (designer.swap_columns(idx, idx-1), update_ui())
             g[f'move_col_right_{i}'] = lambda e, idx=i: (designer.swap_columns(idx, idx+1), update_ui())
@@ -261,25 +308,19 @@
                 designer.configure_drawers(idx, int(document.getElementById(f"drawer_count_{idx}").value), float(document.getElementById(f"drawer_h_{idx}").value)), 
                 update_ui()
             )
-            
             g[f'reset_shelves_{i}'] = lambda e, idx=i: (
                 designer.set_shelves_count(idx, int(document.getElementById(f"shelf_spaces_{idx}").value)),
                 update_ui()
             )
-            
             g[f'add_shelf_{i}'] = lambda e, idx=i: (
                 designer.add_shelf_at_height(idx, float(document.getElementById(f"add_shelf_h_{idx}").value)) if document.getElementById(f"add_shelf_h_{idx}").value else None,
                 update_ui()
             )
-            
-            # Per-shelf handlers
             col = designer.columns[i]
             for j in range(len(col['shelf_heights'])):
                 g[f'shelf_up_{i}_{j}'] = lambda e, c=i, s=j: (designer.move_shelf(c, s, 5), update_ui())
                 g[f'shelf_down_{i}_{j}'] = lambda e, c=i, s=j: (designer.move_shelf(c, s, -5), update_ui())
                 g[f'shelf_del_{i}_{j}'] = lambda e, c=i, s=j: (designer.remove_shelf_by_index(c, s), update_ui())
-
-            # Dividers
             spaces = len(col['shelf_heights']) + 1
             for sp in range(spaces):
                  g[f'toggle_div_{i}_{sp}'] = lambda e, c=i, s=sp: (designer.subdivide_compartment(c, s), update_ui())
@@ -289,11 +330,20 @@
     def update_ui_wrapper():
         create_col_handlers()
         orig_update()
-        # Save scroll?
+        # Scroll restoration
         sidebar = document.getElementById("sidebar-content")
-        # Scroll restoration logic would go here if needed
-        
+        scrollPos = window.localStorage.getItem('sidebarScrollPos')
+        if scrollPos:
+            sidebar.scrollTop = int(scrollPos)
+    
     update_ui = update_ui_wrapper
+
+    # Save scroll on scroll
+    def on_sidebar_scroll(e):
+        window.localStorage.setItem('sidebarScrollPos', e.target.scrollTop)
+    
+    scroll_proxy = create_proxy(on_sidebar_scroll)
+    document.getElementById("sidebar-content").addEventListener("scroll", scroll_proxy)
 
     # Initial load
     update_ui()

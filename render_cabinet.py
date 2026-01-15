@@ -374,6 +374,180 @@ def render_cabinet_to_bytes(designer_obj):
     im.save(img_byte_arr, format='PNG')
     return img_byte_arr.getvalue()
 
+def render_cabinet_to_svg(designer_obj):
+    """
+    Renders the cabinet configuration to an SVG string.
+    """
+    # Extract data
+    if isinstance(designer_obj, dict):
+        data = designer_obj
+    else:
+        data = {
+            'total_height': designer_obj.total_height,
+            'bottom_height': designer_obj.bottom_height,
+            'plinth_height': designer_obj.plinth_height,
+            'columns': designer_obj.columns
+        }
+    
+    total_h = data.get('total_height', 240.0)
+    bot_h = data.get('bottom_height', 80.0)
+    plinth_h = data.get('plinth_height', 8.0)
+    columns = data.get('columns', [])
+    
+    total_w = sum(c['width'] for c in columns)
+    
+    # Image Dimensions
+    img_w = int((total_w * SCALE) + (MARGIN * 2))
+    img_h = int((total_h * SCALE) + (MARGIN * 2))
+    
+    svg = f'<svg width="{img_w}" height="{img_h}" viewBox="0 0 {img_w} {img_h}" xmlns="http://www.w3.org/2000/svg" style="background:white;">\n'
+    
+    # Helper for coordinates conversion (Y-flip)
+    def to_svg_y(y_cm):
+        return img_h - MARGIN - (y_cm * SCALE)
+
+    def svg_rect(x_cm, y_cm, w_cm, h_cm, fill, outline="none"):
+        x = MARGIN + x_cm * SCALE
+        # y in PIL logic is top-left, but input is bottom-left in CM.
+        # SVG Y is top-down. 
+        # y_cm is bottom of rect. y_cm + h_cm is top of rect.
+        # Top of rect in SVG pixels:
+        y_px = to_svg_y(y_cm + h_cm)
+        w_px = w_cm * SCALE
+        h_px = h_cm * SCALE
+        
+        stroke = f'stroke="{outline}" stroke-width="2"' if outline != "none" else ""
+        return f'<rect x="{x:.1f}" y="{y_px:.1f}" width="{w_px:.1f}" height="{h_px:.1f}" fill="{fill}" {stroke} />'
+
+    def svg_line(x1_px, y1_px, x2_px, y2_px, color, width=2):
+        return f'<line x1="{x1_px:.1f}" y1="{y1_px:.1f}" x2="{x2_px:.1f}" y2="{y2_px:.1f}" stroke="{color}" stroke-width="{width}" />'
+
+    def svg_circle(x_cm, y_cm, r_cm, fill):
+        cx = MARGIN + x_cm * SCALE
+        cy = to_svg_y(y_cm)
+        r = r_cm * SCALE
+        return f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}" fill="{fill}" />'
+    
+    def svg_text(x_px, y_px, content, size=16, color="black"):
+        # y_px in SVG text is baseline. 
+        return f'<text x="{x_px:.1f}" y="{y_px:.1f}" font-family="Arial, sans-serif" font-size="{size}" fill="{color}" text-anchor="middle">{content}</text>'
+
+    # Color Map (Hex)
+    C_OUTLINE = "#3C3C3C"
+    C_CARCASS = "#F5F5F5"
+    C_DOOR = "#DEB887"
+    C_HANDLE = "#323232"
+    C_TEXT = "#000000"
+    C_PLINTH = "#323232"
+
+    # Draw Floor
+    floor_y = img_h - MARGIN
+    svg += svg_line(MARGIN - 50, floor_y, img_w - MARGIN + 50, floor_y, C_OUTLINE, 3) + "\n"
+    
+    current_x = 0.0
+    i = 0
+    while i < len(columns):
+        col = columns[i]
+        
+        # Determine merged group
+        merged_group_indices = [i]
+        temp_idx = i
+        while temp_idx < len(columns) - 1 and columns[temp_idx].get('merge_right', False):
+            temp_idx += 1
+            merged_group_indices.append(temp_idx)
+            
+        group_w = sum(columns[g]['width'] for g in merged_group_indices)
+        group_has_top = any(columns[g].get('has_top', True) for g in merged_group_indices)
+        master_col = columns[i]
+        
+        # --- 1. Bottom Modules ---
+        for g_idx in merged_group_indices:
+            col_g = columns[g_idx]
+            w_g = col_g['width']
+            drawers = col_g.get('drawers', [])
+            
+            x_g = current_x + sum(columns[k]['width'] for k in range(i, g_idx))
+            
+            # Plinth
+            svg += svg_rect(x_g + 2/SCALE, 0, w_g - 4/SCALE, plinth_h, C_PLINTH) + "\n"
+            
+            base_y = plinth_h
+            current_y_top = base_y + (bot_h - plinth_h)
+            
+            if drawers:
+                for d in drawers:
+                    d_h = d['height']
+                    d_y = current_y_top - d_h
+                    svg += svg_rect(x_g, d_y, w_g, d_h, C_DOOR, C_OUTLINE) + "\n"
+                    # Handle
+                    handle_y_cm = d_y + d_h - (5/SCALE)
+                    handle_x_cm = x_g + w_g/2 - (5/SCALE)
+                    # SVG rect takes CM in our helper
+                    svg += svg_rect(handle_x_cm, handle_y_cm, 10/SCALE, 2/SCALE, C_HANDLE) + "\n"
+                    current_y_top -= d_h
+            
+            remaining_h = current_y_top - base_y
+            if remaining_h > 1.0:
+                svg += svg_rect(x_g, base_y, w_g, remaining_h, C_DOOR, C_OUTLINE) + "\n"
+                
+                if w_g == 80:
+                    mid_x = x_g + (w_g / 2)
+                    mid_px = MARGIN + mid_x * SCALE
+                    top_px = to_svg_y(base_y + remaining_h)
+                    bot_px = to_svg_y(base_y)
+                    svg += svg_line(mid_px, top_px, mid_px, bot_px, C_OUTLINE, 2) + "\n"
+                    
+                    svg += svg_circle(x_g + (w_g/2) - 3/SCALE, base_y + remaining_h - 10/SCALE, 1/SCALE, C_HANDLE) + "\n"
+                    svg += svg_circle(x_g + (w_g/2) + 3/SCALE, base_y + remaining_h - 10/SCALE, 1/SCALE, C_HANDLE) + "\n"
+                else:
+                    svg += svg_circle(x_g + w_g - 5/SCALE, base_y + remaining_h - 10/SCALE, 1/SCALE, C_HANDLE) + "\n"
+            
+            # Label
+            label_x = MARGIN + (x_g + w_g/2)*SCALE
+            label_y = img_h - MARGIN + 25
+            svg += svg_text(label_x, label_y, f"{w_g}cm", 20, C_TEXT) + "\n"
+
+        # --- 2. Top Module ---
+        if group_has_top:
+            # Sides
+            svg += svg_rect(current_x, bot_h, THICKNESS, total_h - bot_h, C_CARCASS, C_OUTLINE) + "\n"
+            svg += svg_rect(current_x + group_w - THICKNESS, bot_h, THICKNESS, total_h - bot_h, C_CARCASS, C_OUTLINE) + "\n"
+            
+            # Top/Counter
+            svg += svg_rect(current_x, total_h - THICKNESS, group_w, THICKNESS, C_CARCASS, C_OUTLINE) + "\n"
+            svg += svg_rect(current_x, bot_h - THICKNESS, group_w, THICKNESS, C_CARCASS, C_OUTLINE) + "\n"
+            
+            shelves = master_col.get('shelf_heights', [])
+            dividers = master_col.get('vertical_dividers', [])
+            sorted_shelves = sorted(shelves)
+            all_bounds = [bot_h] + sorted_shelves + [total_h]
+            
+            for j in range(len(all_bounds) - 1):
+                low, high = all_bounds[j], all_bounds[j+1]
+                mid_z = (low + high) / 2
+                
+                # Height Label (Using larger font for SVG)
+                tx = MARGIN + (current_x + 2) * SCALE + 15 
+                ty = to_svg_y(mid_z) + 5
+                svg += svg_text(tx, ty, f"{high-low:.1f}", 14, "#999999") + "\n"
+                
+                if j in dividers:
+                    mid_x = current_x + (group_w / 2)
+                    svg += svg_rect(mid_x - THICKNESS/2, low, THICKNESS, high - low, C_CARCASS, C_OUTLINE) + "\n"
+
+            for h in sorted_shelves:
+                if bot_h < h < total_h:
+                    svg += svg_rect(current_x + THICKNESS, h - THICKNESS, group_w - 2*THICKNESS, THICKNESS, C_CARCASS, C_OUTLINE) + "\n"
+        
+        current_x += group_w
+        i = temp_idx + 1
+
+    # Total Dims
+    svg += svg_text(img_w/2, MARGIN/2, f"Total Width: {total_w}cm | Total Height: {total_h}cm", 30, C_TEXT) + "\n"
+    
+    svg += "</svg>"
+    return svg
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python render_cabinet.py <config.json> [output.png]")
