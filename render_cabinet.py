@@ -468,8 +468,8 @@ def render_cabinet_to_svg(designer_obj):
             
             x_g = current_x + sum(columns[k]['width'] for k in range(i, g_idx))
             
-            # Plinth
-            svg += svg_rect(x_g + 2/SCALE, 0, w_g - 4/SCALE, plinth_h, C_PLINTH) + "\n"
+            # Plinth (2cm recess)
+            svg += svg_rect(x_g + 2, 0, w_g - 4, plinth_h, C_PLINTH) + "\n"
             
             base_y = plinth_h
             current_y_top = base_y + (bot_h - plinth_h)
@@ -479,11 +479,10 @@ def render_cabinet_to_svg(designer_obj):
                     d_h = d['height']
                     d_y = current_y_top - d_h
                     svg += svg_rect(x_g, d_y, w_g, d_h, C_DOOR, C_OUTLINE) + "\n"
-                    # Handle
-                    handle_y_cm = d_y + d_h - (5/SCALE)
-                    handle_x_cm = x_g + w_g/2 - (5/SCALE)
-                    # SVG rect takes CM in our helper
-                    svg += svg_rect(handle_x_cm, handle_y_cm, 10/SCALE, 2/SCALE, C_HANDLE) + "\n"
+                    # Handle (10cm wide, 2cm high)
+                    handle_y_cm = d_y + d_h - 5
+                    handle_x_cm = x_g + w_g/2 - 5
+                    svg += svg_rect(handle_x_cm, handle_y_cm, 10, 2, C_HANDLE) + "\n"
                     current_y_top -= d_h
             
             remaining_h = current_y_top - base_y
@@ -497,15 +496,15 @@ def render_cabinet_to_svg(designer_obj):
                     bot_px = to_svg_y(base_y)
                     svg += svg_line(mid_px, top_px, mid_px, bot_px, C_OUTLINE, 2) + "\n"
                     
-                    svg += svg_circle(x_g + (w_g/2) - 3/SCALE, base_y + remaining_h - 10/SCALE, 1/SCALE, C_HANDLE) + "\n"
-                    svg += svg_circle(x_g + (w_g/2) + 3/SCALE, base_y + remaining_h - 10/SCALE, 1/SCALE, C_HANDLE) + "\n"
+                    svg += svg_circle(x_g + (w_g/2) - 3, base_y + remaining_h - 10, 1, C_HANDLE) + "\n"
+                    svg += svg_circle(x_g + (w_g/2) + 3, base_y + remaining_h - 10, 1, C_HANDLE) + "\n"
                 else:
-                    svg += svg_circle(x_g + w_g - 5/SCALE, base_y + remaining_h - 10/SCALE, 1/SCALE, C_HANDLE) + "\n"
+                    svg += svg_circle(x_g + w_g - 5, base_y + remaining_h - 10, 1, C_HANDLE) + "\n"
             
             # Label
             label_x = MARGIN + (x_g + w_g/2)*SCALE
-            label_y = img_h - MARGIN + 25
-            svg += svg_text(label_x, label_y, f"{w_g}cm", 20, C_TEXT) + "\n"
+            label_y = img_h - MARGIN + 35
+            svg += svg_text(label_x, label_y, f"{w_g}cm", 24, C_TEXT) + "\n"
 
         # --- 2. Top Module ---
         if group_has_top:
@@ -526,10 +525,10 @@ def render_cabinet_to_svg(designer_obj):
                 low, high = all_bounds[j], all_bounds[j+1]
                 mid_z = (low + high) / 2
                 
-                # Height Label (Using larger font for SVG)
-                tx = MARGIN + (current_x + 2) * SCALE + 15 
-                ty = to_svg_y(mid_z) + 5
-                svg += svg_text(tx, ty, f"{high-low:.1f}", 14, "#999999") + "\n"
+                # Height Label
+                tx = MARGIN + (current_x + 2) * SCALE + 20
+                ty = to_svg_y(mid_z) + 6
+                svg += svg_text(tx, ty, f"{high-low:.1f}", 18, "#777777") + "\n"
                 
                 if j in dividers:
                     mid_x = current_x + (group_w / 2)
@@ -543,7 +542,7 @@ def render_cabinet_to_svg(designer_obj):
         i = temp_idx + 1
 
     # Total Dims
-    svg += svg_text(img_w/2, MARGIN/2, f"Total Width: {total_w}cm | Total Height: {total_h}cm", 30, C_TEXT) + "\n"
+    svg += svg_text(img_w/2, MARGIN/2, f"Total Width: {total_w}cm | Total Height: {total_h}cm", 36, C_TEXT) + "\n"
     
     svg += "</svg>"
     return svg

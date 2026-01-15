@@ -10,7 +10,7 @@
         body { font-family: sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background: #f0f0f0; }
         .sidebar { width: 400px; background: #fff; padding: 20px; overflow-y: auto; border-right: 1px solid #ccc; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
         .preview { flex: 1; display: flex; align-items: center; justify-content: center; background: #e0e0e0; padding: 20px; overflow: auto; }
-        .preview svg { max-width: 100%; max-height: 100%; box-shadow: 0 0 20px rgba(0,0,0,0.2); background: white; }
+        .preview svg { max-width: 100%; max-height: 100%; box-shadow: 0 0 20px rgba(0,0,0,0.2); background: white; border: 1px solid #999; }
         
         h1, h2, h3 { margin-top: 0; }
         .card { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; background: #fafafa; }
@@ -59,19 +59,27 @@
         designer.add_column(80)
 
     def update_ui():
-        # Render SVG
-        svg_content = render_cabinet_to_svg(designer)
-        document.getElementById("preview-container").innerHTML = svg_content
-        
-        # Render Sidebar HTML
-        html = generate_sidebar_html()
-        sidebar = document.getElementById("sidebar-content")
-        sidebar.innerHTML = html
+        try:
+            # Render SVG
+            svg_content = render_cabinet_to_svg(designer)
+            document.getElementById("preview-container").innerHTML = svg_content
+            
+            # Render Sidebar HTML
+            html = generate_sidebar_html()
+            sidebar = document.getElementById("sidebar-content")
+            sidebar.innerHTML = html
+            
+            # Restore Scroll
+            scrollPos = window.localStorage.getItem('sidebarScrollPos')
+            if scrollPos:
+                sidebar.scrollTop = int(scrollPos)
+        except Exception as e:
+            js.console.error(f"UI Update failed: {e}")
 
     def generate_sidebar_html():
         html = "<h1>Cabinet Designer</h1>"
         
-        # Save / Load / Templates
+        # Files & Templates
         html += """
         <div class="card">
             <h3>Files & Templates</h3>
@@ -83,14 +91,14 @@
                     <option value="library_wall">Library Wall</option>
                     <option value="modern_display">Modern Display</option>
                 </select>
-                <button py-click="load_template">Load</button>
+                <button data-action="load_template">Load</button>
             </div>
             <div class="row" style="margin-top:10px;">
-                <button class="btn-success" py-click="save_to_file" style="flex:1;">Save to File</button>
+                <button class="btn-success" data-action="save_to_file" style="flex:1;">Save to File</button>
             </div>
             <div class="row">
                 <input type="file" id="file_loader" style="display:none;">
-                <button py-click="trigger_file_load" style="flex:1;">Load from File</button>
+                <button data-action="trigger_file_load" style="flex:1;">Load from File</button>
             </div>
         </div>
         """
@@ -100,22 +108,22 @@
         <div class="card">
             <h3>Global Settings</h3>
             <div class="row">
-                <label>Total Height (cm):</label>
+                <label>Total Height:</label>
                 <input type="number" id="total_height" value="{designer.total_height}" step="0.1">
-                <button py-click="set_height">Set</button>
+                <button data-action="set_height">Set</button>
             </div>
             <div class="row">
-                <label>Plinth Height (cm):</label>
+                <label>Plinth Height:</label>
                 <input type="number" id="plinth_height" value="{designer.plinth_height}" step="0.1">
-                <button py-click="set_plinth">Set</button>
+                <button data-action="set_plinth">Set</button>
             </div>
             <div class="row" style="margin-top:10px;">
-                <button py-click="add_col_40">+ 40cm Col</button>
-                <button py-click="add_col_60">+ 60cm Col</button>
-                <button py-click="add_col_80">+ 80cm Col</button>
+                <button data-action="add_col" data-args="40">+ 40cm</button>
+                <button data-action="add_col" data-args="60">+ 60cm</button>
+                <button data-action="add_col" data-args="80">+ 80cm</button>
             </div>
             <div style="margin-top:10px;">
-                 <button class="btn-danger" py-click="reset_all">Reset All</button>
+                 <button class="btn-danger" data-action="reset_all">Reset All</button>
             </div>
         </div>
         <h2>Columns</h2>
@@ -127,25 +135,21 @@
             badge = '<span class="badge on" style="margin-left:10px; font-size: 0.8em; vertical-align: middle;">MERGED &larr;</span>' if is_merged_target else ''
             
             html += f'<div class="card" style="{style}">'
-            html += f'<h3>Column #{i + 1} ({col["width"]}cm) {badge}<div>'
+            html += f'<h3>Col #{i + 1} ({col["width"]}cm) {badge}<div>'
             
-            # Move/Delete Controls
-            disabled_up = 'disabled' if i == 0 else ''
-            disabled_down = 'disabled' if i == len(designer.columns)-1 else ''
-            html += f'<button py-click="move_col_left_{i}" {disabled_up}>&uarr;</button>'
-            html += f'<button py-click="move_col_right_{i}" {disabled_down}>&darr;</button>'
-            html += f'<button class="btn-danger" py-click="remove_col_{i}">X</button>'
+            # Move/Delete
+            html += f'<button data-action="move_col" data-args="{i},left" {"disabled" if i==0 else ""}>&uarr;</button>'
+            html += f'<button data-action="move_col" data-args="{i},right" {"disabled" if i==len(designer.columns)-1 else ""}>&darr;</button>'
+            html += f'<button class="btn-danger" data-action="remove_col" data-args="{i}">X</button>'
             html += '</div></h3>'
             
-            # Top/Merge Controls
+            # Top/Merge
             top_state = 'ON' if col['has_top'] else 'OFF'
             merge_state = 'YES' if col['merge_right'] else 'NO'
-            disabled_top = 'disabled' if is_merged_target else ''
-            
             html += '<div class="controls-group">'
-            html += f'<button class="btn-primary" py-click="toggle_top_{i}" {disabled_top}>Top Section: {top_state}</button> '
+            html += f'<button class="btn-primary" data-action="toggle_top" data-args="{i}" {"disabled" if is_merged_target else ""}>Top Section: {top_state}</button> '
             if i < len(designer.columns) - 1:
-                html += f'<button py-click="toggle_merge_{i}">Merge Right: {merge_state}</button>'
+                html += f'<button data-action="toggle_merge" data-args="{i}">Merge Right: {merge_state}</button>'
             html += '</div>'
             
             # Drawers
@@ -159,196 +163,169 @@
                     <input type="number" id="drawer_count_{i}" value="{drawers_count}" min="0" max="5" style="width:40px;">
                     <label>H:</label>
                     <input type="number" id="drawer_h_{i}" value="{drawer_h}" step="0.1" style="width:50px;">
-                    <button py-click="set_drawers_{i}">Set</button>
+                    <button data-action="set_drawers" data-args="{i}">Set</button>
                 </div>
             </div>
             """
             
             if is_merged_target:
                 html += f"""<div class="controls-group" style="color: #888; font-style: italic; padding: 10px 0;">
-                    This column's upper section is merged with the column to the left. 
-                    Shelves and compartments are controlled by Column #{i}.
+                    Controlled by Col #{i}.
                 </div>"""
             else:
                 # Shelves
                 html += '<div class="controls-group"><strong>Shelves:</strong>'
-                html += '<table style="width:100%; border-collapse: collapse; font-size: 0.9em;">'
+                html += '<table style="width:100%; border-collapse: collapse; font-size: 0.8em;">'
                 if not col['shelf_heights']:
                     html += '<tr><td>No shelves</td></tr>'
                 else:
                     for j, h in enumerate(col['shelf_heights']):
                         html += f"""
                         <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 3px;">#{j+1}</td>
-                            <td style="padding: 3px;"><strong>{round(h, 1)}</strong> cm</td>
-                            <td style="text-align: right; padding: 3px;">
-                                <button style="padding: 2px 5px;" py-click="shelf_up_{i}_{j}">&uarr;</button>
-                                <button style="padding: 2px 5px;" py-click="shelf_down_{i}_{j}">&darr;</button>
-                                <button class="btn-danger" style="padding: 2px 5px;" py-click="shelf_del_{i}_{j}">X</button>
+                            <td style="padding: 2px;">#{j+1}</td>
+                            <td style="padding: 2px;"><strong>{round(h, 1)}</strong>cm</td>
+                            <td style="text-align: right; padding: 2px;">
+                                <button data-action="shelf_move" data-args="{i},{j},5">&uarr;</button>
+                                <button data-action="shelf_move" data-args="{i},{j},-5">&darr;</button>
+                                <button class="btn-danger" data-action="shelf_del" data-args="{i},{j}">X</button>
                             </td>
                         </tr>
                         """
                 html += '</table>'
                 
-                # Add/Reset Shelves
+                # Add/Reset
                 html += f"""
                 <div style="margin-top: 5px;">
                     <div class="row" style="margin-bottom:2px;">
-                        <label style="font-size:0.9em;">Spaces:</label>
-                        <input type="number" id="shelf_spaces_{i}" value="3" min="1" max="10" style="width:30px; padding: 2px;">
-                        <button style="padding: 2px 5px;" py-click="reset_shelves_{i}">Reset Even</button>
+                        <input type="number" id="shelf_spaces_{i}" value="3" min="1" max="10" style="width:30px;">
+                        <button data-action="reset_shelves" data-args="{i}">Reset Even</button>
                     </div>
                     <div class="row">
-                        <input type="number" id="add_shelf_h_{i}" step="0.1" placeholder="H (cm)" style="width:50px; padding: 2px;">
-                        <button style="padding: 2px 5px;" py-click="add_shelf_{i}">Add</button>
+                        <input type="number" id="add_shelf_h_{i}" step="0.1" placeholder="H" style="width:50px;">
+                        <button data-action="add_shelf" data-args="{i}">Add</button>
                     </div>
                 </div>
                 </div>
                 """
                 
                 # Dividers
-                html += '<div class="controls-group"><strong>Vertical Dividers (Compartments):</strong>'
-                html += '<div style="font-size: 0.9em; margin-top: 5px;">'
+                html += '<div class="controls-group"><strong>Dividers:</strong>'
+                html += '<div style="font-size: 0.85em; margin-top: 5px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px;">'
                 spaces = len(col['shelf_heights']) + 1
                 for space_id in range(spaces):
-                    label = 'Top' if space_id == spaces-1 else 'Mid' if space_id > 0 else 'Bot'
                     is_active = space_id in col['vertical_dividers']
                     btn_style = 'background-color: #dca;' if is_active else ''
-                    btn_text = 'DIVIDER ON' if is_active else 'Toggle'
-                    html += f"""
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                        <span>Space {space_id} ({label}):</span>
-                        <button style="padding: 2px 5px; {btn_style}" py-click="toggle_div_{i}_{space_id}">{btn_text}</button>
-                    </div>
-                    """
+                    html += f'<button style="{btn_style}" data-action="toggle_div" data-args="{i},{space_id}">S{space_id}</button>'
                 html += '</div></div>'
             
-            html += '</div>' # End Card
+            html += '</div>'
             
         return html
 
-    # --- Event Handlers ---
-    
-    def set_height(e):
-        val = document.getElementById("total_height").value
-        if val: designer.set_height(float(val)); update_ui()
-
-    def set_plinth(e):
-        val = document.getElementById("plinth_height").value
-        if val: designer.set_plinth_height(float(val)); update_ui()
-
-    def add_col_40(e): designer.add_column(40); update_ui()
-    def add_col_60(e): designer.add_column(60); update_ui()
-    def add_col_80(e): designer.add_column(80); update_ui()
-    def reset_all(e): 
-        global designer
-        designer = CabinetDesigner()
-        designer.add_column(60)
-        designer.add_column(80)
-        update_ui()
-
-    def load_template(e):
-        t_name = document.getElementById("template_select").value
-        if t_name:
-            filepath = f"templates/{t_name}.json"
-            designer.load_config(filepath)
+    # --- Router / Action Dispatcher ---
+    def handle_click(e):
+        target = e.target
+        while target and target.tagName != "BUTTON":
+            target = target.parentElement
+            if not target or target.id == "sidebar-content": break
+        
+        if not target: return
+        
+        action = target.getAttribute("data-action")
+        args_str = target.getAttribute("data-args")
+        args = args_str.split(",") if args_str else []
+        
+        try:
+            if action == "set_height":
+                val = document.getElementById("total_height").value
+                if val: designer.set_height(float(val))
+            elif action == "set_plinth":
+                val = document.getElementById("plinth_height").value
+                if val: designer.set_plinth_height(float(val))
+            elif action == "add_col":
+                designer.add_column(int(args[0]))
+            elif action == "reset_all":
+                global designer
+                designer = CabinetDesigner()
+                designer.add_column(60)
+                designer.add_column(80)
+            elif action == "load_template":
+                t_name = document.getElementById("template_select").value
+                if t_name: designer.load_config(f"templates/{t_name}.json")
+            elif action == "save_to_file":
+                save_to_file()
+            elif action == "trigger_file_load":
+                document.getElementById("file_loader").click()
+            elif action == "move_col":
+                idx, dir = int(args[0]), args[1]
+                designer.swap_columns(idx, idx-1 if dir=="left" else idx+1)
+            elif action == "remove_col":
+                designer.remove_column(int(args[0]))
+            elif action == "toggle_top":
+                designer.toggle_top(int(args[0]))
+            elif action == "toggle_merge":
+                designer.toggle_merge(int(args[0]))
+            elif action == "set_drawers":
+                idx = int(args[0])
+                cnt = int(document.getElementById(f"drawer_count_{idx}").value)
+                h = float(document.getElementById(f"drawer_h_{idx}").value)
+                designer.configure_drawers(idx, cnt, h)
+            elif action == "reset_shelves":
+                idx = int(args[0])
+                spc = int(document.getElementById(f"shelf_spaces_{idx}").value)
+                designer.set_shelves_count(idx, spc)
+            elif action == "add_shelf":
+                idx = int(args[0])
+                h_val = document.getElementById(f"add_shelf_h_{idx}").value
+                if h_val: designer.add_shelf_at_height(idx, float(h_val))
+            elif action == "shelf_move":
+                c_idx, s_idx, amt = int(args[0]), int(args[1]), float(args[2])
+                designer.move_shelf(c_idx, s_idx, amt)
+            elif action == "shelf_del":
+                designer.remove_shelf_by_index(int(args[0]), int(args[1]))
+            elif action == "toggle_div":
+                designer.subdivide_compartment(int(args[0]), int(args[1]))
+            
             update_ui()
+        except Exception as ex:
+            js.console.error(f"Action {action} failed: {ex}")
 
-    def save_to_file(e):
-        data = {
-            'total_height': designer.total_height,
-            'bottom_height': designer.bottom_height,
-            'plinth_height': designer.plinth_height,
-            'columns': designer.columns
-        }
+    def save_to_file():
+        data = {'total_height': designer.total_height, 'bottom_height': designer.bottom_height, 
+                'plinth_height': designer.plinth_height, 'columns': designer.columns}
         json_str = json.dumps(data, indent=4)
         blob = window.Blob.new([json_str], {type: 'application/json'})
         url = window.URL.createObjectURL(blob)
         link = document.createElement('a')
-        link.href = url
-        link.download = "cabinet_design.json"
+        link.href, link.download = url, "cabinet_design.json"
         link.click()
         window.URL.revokeObjectURL(url)
 
-    def trigger_file_load(e):
-        document.getElementById("file_loader").click()
-
     async def handle_file_upload(e):
-        file_list = e.target.files
-        if len(file_list) > 0:
-            file = file_list.item(0)
-            text = await file.text()
+        if e.target.files.length > 0:
+            text = await e.target.files.item(0).text()
             try:
-                # We need a temp file because load_config expects a path
-                # Or just update load_config to accept a dict. 
-                # Let's just do a manual load for now to be safe.
                 data = json.loads(text)
-                designer.total_height = data.get('total_height', 240.0)
-                designer.bottom_height = data.get('bottom_height', 80.0)
-                designer.plinth_height = data.get('plinth_height', 8.0)
-                designer.columns = data.get('columns', [])
+                designer.total_height, designer.bottom_height = data.get('total_height', 240), data.get('bottom_height', 80)
+                designer.plinth_height, designer.columns = data.get('plinth_height', 8), data.get('columns', [])
                 update_ui()
-            except Exception as ex:
-                js.alert(f"Error loading file: {ex}")
+            except Exception as ex: js.alert(f"Load failed: {ex}")
 
-    # Attach file upload handler (async)
+    # Listeners
+    click_proxy = create_proxy(handle_click)
+    document.getElementById("sidebar-content").addEventListener("click", click_proxy)
+    
     file_upload_proxy = create_proxy(handle_file_upload)
     document.getElementById("file_loader").addEventListener("change", file_upload_proxy)
 
-    def create_col_handlers():
-        g = globals()
-        for i in range(len(designer.columns)):
-            g[f'move_col_left_{i}'] = lambda e, idx=i: (designer.swap_columns(idx, idx-1), update_ui())
-            g[f'move_col_right_{i}'] = lambda e, idx=i: (designer.swap_columns(idx, idx+1), update_ui())
-            g[f'remove_col_{i}'] = lambda e, idx=i: (designer.remove_column(idx), update_ui())
-            g[f'toggle_top_{i}'] = lambda e, idx=i: (designer.toggle_top(idx), update_ui())
-            g[f'toggle_merge_{i}'] = lambda e, idx=i: (designer.toggle_merge(idx), update_ui())
-            
-            g[f'set_drawers_{i}'] = lambda e, idx=i: (
-                designer.configure_drawers(idx, int(document.getElementById(f"drawer_count_{idx}").value), float(document.getElementById(f"drawer_h_{idx}").value)), 
-                update_ui()
-            )
-            g[f'reset_shelves_{i}'] = lambda e, idx=i: (
-                designer.set_shelves_count(idx, int(document.getElementById(f"shelf_spaces_{idx}").value)),
-                update_ui()
-            )
-            g[f'add_shelf_{i}'] = lambda e, idx=i: (
-                designer.add_shelf_at_height(idx, float(document.getElementById(f"add_shelf_h_{idx}").value)) if document.getElementById(f"add_shelf_h_{idx}").value else None,
-                update_ui()
-            )
-            col = designer.columns[i]
-            for j in range(len(col['shelf_heights'])):
-                g[f'shelf_up_{i}_{j}'] = lambda e, c=i, s=j: (designer.move_shelf(c, s, 5), update_ui())
-                g[f'shelf_down_{i}_{j}'] = lambda e, c=i, s=j: (designer.move_shelf(c, s, -5), update_ui())
-                g[f'shelf_del_{i}_{j}'] = lambda e, c=i, s=j: (designer.remove_shelf_by_index(c, s), update_ui())
-            spaces = len(col['shelf_heights']) + 1
-            for sp in range(spaces):
-                 g[f'toggle_div_{i}_{sp}'] = lambda e, c=i, s=sp: (designer.subdivide_compartment(c, s), update_ui())
-
-    # Override update_ui to also update handlers
-    orig_update = update_ui
-    def update_ui_wrapper():
-        create_col_handlers()
-        orig_update()
-        # Scroll restoration
-        sidebar = document.getElementById("sidebar-content")
-        scrollPos = window.localStorage.getItem('sidebarScrollPos')
-        if scrollPos:
-            sidebar.scrollTop = int(scrollPos)
-    
-    update_ui = update_ui_wrapper
-
-    # Save scroll on scroll
     def on_sidebar_scroll(e):
         window.localStorage.setItem('sidebarScrollPos', e.target.scrollTop)
-    
     scroll_proxy = create_proxy(on_sidebar_scroll)
     document.getElementById("sidebar-content").addEventListener("scroll", scroll_proxy)
 
-    # Initial load
+    # Init
     update_ui()
     document.getElementById("loading").style.display = "none"
-
 </script>
 
 </body>
