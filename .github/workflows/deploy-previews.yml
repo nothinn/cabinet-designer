@@ -1,0 +1,60 @@
+name: Deploy Branch/PR Previews
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-and-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pillow
+
+      - name: Build static site
+        run: |
+          mkdir -p build
+          cp -r * build/ || true
+          cp *.html build/ || true
+          cp *.py build/ || true
+          cp -r templates build/ || true
+
+      - name: Create preview directory
+        run: |
+          mkdir -p preview-deploy/${{ github.ref_name }}
+          cp -r build/* preview-deploy/${{ github.ref_name }}/
+
+      - name: Create pull request for preview deployment
+        id: create-pr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Deploy preview for ${{ github.ref_name }}"
+          title: "Preview Deployment: ${{ github.ref_name }}"
+          body: |
+            This PR deploys a preview of ${{ github.ref_name }} to GitHub Pages.
+            
+            Preview URL: https://nothinn.github.io/cabinet-designer/${{ github.ref_name }}/
+            
+            Please review and merge to deploy the preview.
+          branch: "preview-deploy/${{ github.ref_name }}"
+          base: "main"
+          labels: "preview,automated"
+          draft: false
