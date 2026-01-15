@@ -1,0 +1,100 @@
+name: Deploy Branch/PR Previews
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "preview-${{ github.ref_name }}"
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pillow requests
+
+      - name: Generate preview data
+        run: |
+          python generate-previews-json.py
+
+      - name: Build static site
+        run: |
+          mkdir -p build
+          cp -r * build/ || true
+          cp *.html build/ || true
+          cp *.py build/ || true
+          cp -r templates build/ || true
+
+      - name: Determine preview path
+        id: preview-path
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "PREVIEW_PATH=pr-${{ github.event.pull_request.number }}-${{ github.head_ref }}" >> $GITHUB_ENV
+            echo "PREVIEW_TYPE=pr" >> $GITHUB_ENV
+          else
+            echo "PREVIEW_PATH=${{ github.ref_name }}" >> $GITHUB_ENV
+            echo "PREVIEW_TYPE=branch" >> $GITHUB_ENV
+          fi
+          echo "Preview path: $PREVIEW_PATH"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: './build'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+        with:
+          target_dir: ${{ env.PREVIEW_PATH }}
+
+      - name: Update preview index
+        if: always()
+        run: |
+          # This would be handled by a separate workflow that regenerates the main preview index
+          echo "Preview deployed to: https://nothinn.github.io/cabinet-designer/${{ env.PREVIEW_PATH }}/"
+          
+      - name: Create preview notification PR
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update preview index with ${{ env.PREVIEW_PATH }}"
+          title: "Preview Update: ${{ env.PREVIEW_PATH }}"
+          body: |
+            This PR updates the preview index with the new preview deployment:
+            
+            - **Preview Type**: ${{ env.PREVIEW_TYPE }}
+            - **Preview Path**: ${{ env.PREVIEW_PATH }}
+            - **Preview URL**: https://nothinn.github.io/cabinet-designer/${{ env.PREVIEW_PATH }}/
+            - **Source**: ${{ github.ref_name }}
+            
+            This is an automated update to keep the preview index current.
+          branch: "update-preview-index"
+          base: "main"
+          labels: "preview,automated"
+          draft: false

@@ -17,6 +17,18 @@ A simple Python-based tool for designing custom cabinets with shelving, drawers,
 2. Use commands like `add`, `shelf`, `drawer`, `render`.
    Type `help` for a full list.
 
+## Preview System
+
+This project includes an automatic preview system that deploys branch and PR previews to GitHub Pages:
+
+- **Main Site**: `https://nothinn.github.io/cabinet-designer/`
+- **Branch Previews**: `https://nothinn.github.io/cabinet-designer/branch-name/`
+- **PR Previews**: `https://nothinn.github.io/cabinet-designer/pr-number-branch-name/`
+- **Preview Index**: `https://nothinn.github.io/cabinet-designer/preview-index.html`
+
+The preview index automatically shows all available previews and updates hourly.
+
 ## Requirements
 - Python 3.x
 - Pillow (`pip install pillow`) for image rendering.
+- Requests (`pip install requests`) for preview generation.
