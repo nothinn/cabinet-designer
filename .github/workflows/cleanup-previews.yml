@@ -1,0 +1,81 @@
+name: Cleanup Old Previews
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run every Sunday at midnight
+  workflow_dispatch:     # Allow manual triggering
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get list of branches
+        id: branches
+        run: |
+          # Get all branches from GitHub API
+          branches=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/branches" | \
+            jq -r '.[].name')
+
+          # Get all PRs and their head branches
+          prs=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open" | \
+            jq -r '.[].head.ref')
+
+          # Combine and create unique list
+          all_refs=$(echo "$branches" && echo "$prs" | sort | uniq)
+
+          # Get existing preview directories
+          existing_dirs=$(find . -maxdepth 1 -type d ! -name '.' ! -name '.git' ! -name 'templates' ! -name 'assets' | sed 's|^\./||')
+
+          # Create cleanup list (directories not in current branches/PRs)
+          cleanup_list=""
+          for dir in $existing_dirs; do
+            if ! echo "$all_refs" | grep -q "^$dir$"; then
+              cleanup_list="$cleanup_list $dir"
+            fi
+          done
+
+          echo "CLEANUP_LIST=$cleanup_list" >> $GITHUB_ENV
+
+      - name: Remove old preview directories
+        if: env.CLEANUP_LIST != ''
+        run: |
+          for dir in $CLEANUP_LIST; do
+            echo "Removing old preview directory: $dir"
+            rm -rf "$dir"
+          done
+
+      - name: Commit cleanup changes
+        if: env.CLEANUP_LIST != ''
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add .
+          git commit -m "Cleanup old previews: $CLEANUP_LIST"
+
+      - name: Create cleanup pull request
+        if: env.CLEANUP_LIST != ''
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Cleanup old previews: $CLEANUP_LIST"
+          title: "Cleanup: Remove old previews"
+          body: |
+            This PR removes old preview directories that are no longer needed:
+            
+            ${CLEANUP_LIST}
+            
+            These previews correspond to closed PRs or deleted branches.
+          branch: "cleanup-old-previews"
+          base: "main"
+          labels: "cleanup,automated"
+          draft: false
