@@ -69,8 +69,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          target_dir: ${{ env.PREVIEW_PATH }}
 
       - name: Update preview index
         if: always()
