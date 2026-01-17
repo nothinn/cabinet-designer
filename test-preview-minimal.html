@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minimal Preview Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #loading { color: #667eea; }
+        #error { color: red; }
+        #success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Minimal Preview Test</h1>
+    <div id="loading">Loading...</div>
+    <div id="error" style="display: none;"></div>
+    <div id="success" style="display: none;"></div>
+
+    <script>
+        // Get query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const branch = urlParams.get('branch') || 'fix-deployment';
+
+        async function testPreview() {
+            try {
+                console.log('Testing preview for branch:', branch);
+                
+                // Test 1: Fetch from GitHub API
+                document.getElementById('loading').textContent = 'Testing GitHub API...';
+                const apiUrl = `https://api.github.com/repos/nothinn/cabinet-designer/branches/${branch}`;
+                const apiResponse = await fetch(apiUrl);
+                
+                if (!apiResponse.ok) {
+                    throw new Error(`API failed: ${apiResponse.status}`);
+                }
+                
+                const apiData = await apiResponse.json();
+                console.log('API response:', apiData);
+                
+                // Test 2: Fetch raw content
+                document.getElementById('loading').textContent = 'Testing raw content...';
+                const contentUrl = `https://raw.githubusercontent.com/nothinn/cabinet-designer/${branch}/index.html`;
+                const contentResponse = await fetch(contentUrl);
+                
+                if (!contentResponse.ok) {
+                    throw new Error(`Content failed: ${contentResponse.status}`);
+                }
+                
+                const htmlContent = await contentResponse.text();
+                console.log('Content length:', htmlContent.length);
+                
+                // Success!
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('success').style.display = 'block';
+                document.getElementById('success').innerHTML = `
+                    ✅ All tests passed!<br>
+                    Branch: ${branch}<br>
+                    Commit: ${apiData.commit.sha.substring(0, 7)}<br>
+                    Content length: ${htmlContent.length} characters
+                `;
+                
+            } catch (error) {
+                console.error('Test failed:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = `❌ Test failed: ${error.message}`;
+            }
+        }
+
+        // Run the test
+        testPreview();
+    </script>
+</body>
+</html>
