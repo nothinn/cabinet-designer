@@ -1,0 +1,24 @@
+{
+  "previews": [
+    {
+      "name": "main",
+      "url": "https://nothinn.github.io/cabinet-designer/",
+      "type": "production",
+      "updated_at": "2026-01-17T09:07:31.644118Z"
+    },
+    {
+      "name": "fix/pyscript-robustness",
+      "url": "https://nothinn.github.io/cabinet-designer/fix/pyscript-robustness/",
+      "type": "branch",
+      "updated_at": "2026-01-17T09:07:31.644140Z"
+    },
+    {
+      "name": "fix-deployment",
+      "url": "https://nothinn.github.io/cabinet-designer/fix-deployment/",
+      "type": "branch",
+      "updated_at": "2026-01-17T09:07:31.644145Z"
+    }
+  ],
+  "generated_at": "2026-01-17T09:07:31.644156Z",
+  "count": 3
+}
