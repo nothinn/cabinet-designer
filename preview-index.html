@@ -315,13 +315,13 @@
                     if (response.ok) {
                         const data = await response.json();
                         if (data.previews && data.previews.length > 0) {
-                            // Create dynamic preview URLs for all branches/PRs
+                            // Create dynamic preview URLs for all branches/PRs (use fixed version)
                             allPreviews = data.previews.map(preview => ({
                                 ...preview,
-                                // Use dynamic preview URL for non-main branches
+                                // Use dynamic preview URL for non-main branches (fixed version)
                                 url: preview.name === 'main' 
                                     ? 'https://nothinn.github.io/cabinet-designer/'
-                                    : `https://nothinn.github.io/cabinet-designer/preview.html?branch=${preview.name}`
+                                    : `https://nothinn.github.io/cabinet-designer/preview-fixed.html?branch=${preview.name}`
                             }));
                             applyFilter();
                             loading.style.display = 'none';
@@ -358,19 +358,19 @@
                                 type: 'production',
                                 updated_at: branch.commit.commit.author.date
                             })),
-                        // Other branches (dynamic previews)
+                        // Other branches (dynamic previews - use fixed version)
                         ...branches
                             .filter(branch => branch.name !== 'main')
                             .map(branch => ({
                                 name: branch.name,
-                                url: `https://nothinn.github.io/cabinet-designer/preview.html?branch=${branch.name}`,
+                                url: `https://nothinn.github.io/cabinet-designer/preview-fixed.html?branch=${branch.name}`,
                                 type: 'branch',
                                 updated_at: branch.commit.commit.author.date
                             })),
-                        // Pull requests (dynamic previews)
+                        // Pull requests (dynamic previews - use fixed version)
                         ...prs.map(pr => ({
                             name: `pr-${pr.number}-${pr.head.ref}`,
-                            url: `https://nothinn.github.io/cabinet-designer/preview.html?pr=${pr.number}`,
+                            url: `https://nothinn.github.io/cabinet-designer/preview-fixed.html?pr=${pr.number}`,
                             type: 'pr',
                             updated_at: pr.updated_at
                         }))

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cabinet Designer - Dynamic Preview (Fixed)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 8px;
+            color: white;
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .preview-info {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 8px;
+            color: white;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .preview-info h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .preview-info p {
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .preview-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .preview-content {
+            padding: 20px;
+            min-height: 80vh;
+            background: white;
+            color: #333;
+        }
+
+        .preview-content h2 {
+            color: #667eea;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .preview-content p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .preview-content a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .preview-content a:hover {
+            text-decoration: underline;
+        }
+
+        .code-block {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            margin: 15px 0;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+
+            .preview-content {
+                min-height: 60vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Cabinet Designer - Dynamic Preview</h1>
+            <div class="subtitle">Loading preview from GitHub...</div>
+        </header>
+
+        <div class="nav-buttons">
+            <a href="./" class="nav-btn">← Back to Main Site</a>
+            <a href="./preview-index.html" class="nav-btn">← Back to Preview Index</a>
+        </div>
+
+        <div id="error" class="error"></div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <div>Loading preview...</div>
+            <div id="loading-status">Fetching content from GitHub...</div>
+        </div>
+
+        <div id="preview-info" class="preview-info" style="display: none;">
+            <h2 id="preview-title">Preview Information</h2>
+            <p><strong>Source:</strong> <span id="preview-source"></span></p>
+            <p><strong>Type:</strong> <span id="preview-type"></span></p>
+            <p><strong>Status:</strong> <span id="preview-status">Loading...</span></p>
+            <p id="preview-commit" style="display: none;"><strong>Commit:</strong> <span id="preview-commit-hash"></span></p>
+        </div>
+
+        <div id="preview-container" class="preview-container" style="display: none;">
+            <div id="preview-content" class="preview-content">
+                <h2>Preview Content</h2>
+                <p>This preview shows information about the branch or pull request. Due to GitHub's Content Security Policy, we cannot display the full interactive preview in the browser.</p>
+                
+                <div id="preview-details"></div>
+                
+                <h3>How to View the Full Preview</h3>
+                <p>To see the full interactive preview, you have a few options:</p>
+                
+                <h4>Option 1: Run Locally</h4>
+                <div class="code-block">
+                    git clone https://github.com/nothinn/cabinet-designer.git<br>
+                    cd cabinet-designer<br>
+                    git checkout <span id="preview-branch-name">branch-name</span><br>
+                    python3 -m http.server 8000<br>
+                    # Then open http://localhost:8000 in your browser
+                </div>
+                
+                <h4>Option 2: View Source Code</h4>
+                <p>You can view the source code of this branch/PR on GitHub:</p>
+                <p><a id="github-link" href="#" target="_blank">View on GitHub</a></p>
+                
+                <h4>Option 3: Download and Open</h4>
+                <p>Download the HTML file and open it locally:</p>
+                <div class="code-block">
+                    curl -O https://raw.githubusercontent.com/nothinn/cabinet-designer/<span id="preview-branch-name-2">branch-name</span>/index.html<br>
+                    # Then open index.html in your browser
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const branch = urlParams.get('branch');
+        const prNumber = urlParams.get('pr');
+
+        // DOM elements
+        const errorElement = document.getElementById('error');
+        const loadingElement = document.getElementById('loading');
+        const loadingStatus = document.getElementById('loading-status');
+        const previewInfo = document.getElementById('preview-info');
+        const previewContainer = document.getElementById('preview-container');
+        const previewTitle = document.getElementById('preview-title');
+        const previewSource = document.getElementById('preview-source');
+        const previewType = document.getElementById('preview-type');
+        const previewStatus = document.getElementById('preview-status');
+        const previewCommit = document.getElementById('preview-commit');
+        const previewCommitHash = document.getElementById('preview-commit-hash');
+        const previewDetails = document.getElementById('preview-details');
+        const previewBranchName = document.getElementById('preview-branch-name');
+        const previewBranchName2 = document.getElementById('preview-branch-name-2');
+        const githubLink = document.getElementById('github-link');
+
+        // Check if we have a branch or PR parameter
+        if (!branch && !prNumber) {
+            showError('No branch or pull request specified. Please use ?branch=branch-name or ?pr=pr-number');
+        } else {
+            // Show loading info
+            if (branch) {
+                previewTitle.textContent = `Branch: ${branch}`;
+                previewSource.textContent = branch;
+                previewType.textContent = 'Branch';
+                previewBranchName.textContent = branch;
+                previewBranchName2.textContent = branch;
+                githubLink.href = `https://github.com/nothinn/cabinet-designer/tree/${branch}`;
+                loadingStatus.textContent = `Fetching branch ${branch} from GitHub...`;
+            } else {
+                previewTitle.textContent = `Pull Request: #${prNumber}`;
+                previewSource.textContent = `#${prNumber}`;
+                previewType.textContent = 'Pull Request';
+                loadingStatus.textContent = `Fetching PR #${prNumber} from GitHub...`;
+            }
+
+            // Load the preview
+            loadPreview();
+        }
+
+        async function loadPreview() {
+            try {
+                // Get the raw content from GitHub
+                const repo = 'nothinn/cabinet-designer';
+                let contentUrl, apiUrl, githubUrl;
+
+                if (branch) {
+                    // For branches, get info from the branch
+                    contentUrl = `https://raw.githubusercontent.com/${repo}/${branch}/index.html`;
+                    apiUrl = `https://api.github.com/repos/${repo}/branches/${branch}`;
+                    githubUrl = `https://github.com/nothinn/cabinet-designer/tree/${branch}`;
+                } else {
+                    // For PRs, we need to get the head branch
+                    const prApiUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}`;
+                    const prResponse = await fetch(prApiUrl);
+                    if (!prResponse.ok) {
+                        throw new Error(`Failed to fetch PR #${prNumber} from GitHub API`);
+                    }
+                    const prData = await prResponse.json();
+                    const headBranch = prData.head.ref;
+                    const headRepo = prData.head.repo.full_name;
+                    
+                    contentUrl = `https://raw.githubusercontent.com/${headRepo}/${headBranch}/index.html`;
+                    apiUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}`;
+                    githubUrl = prData.html_url;
+                    
+                    // Update info with PR details
+                    previewSource.textContent = `#${prNumber} - ${headBranch}`;
+                    previewBranchName.textContent = headBranch;
+                    previewBranchName2.textContent = headBranch;
+                    githubLink.href = githubUrl;
+                    loadingStatus.textContent = `Fetching PR #${prNumber} (${headBranch}) from GitHub...`;
+                }
+
+                // Fetch the content
+                loadingStatus.textContent = 'Fetching content...';
+                const contentResponse = await fetch(contentUrl);
+
+                if (!contentResponse.ok) {
+                    throw new Error(`Failed to fetch content: ${contentResponse.status} ${contentResponse.statusText}`);
+                }
+
+                const htmlContent = await contentResponse.text();
+
+                // Get additional info from GitHub API
+                const apiResponse = await fetch(apiUrl);
+                if (apiResponse.ok) {
+                    const apiData = await apiResponse.json();
+                    if (branch) {
+                        const commitHash = apiData.commit.sha;
+                        previewCommit.style.display = 'block';
+                        previewCommitHash.textContent = commitHash.substring(0, 7);
+                    } else {
+                        previewCommit.style.display = 'block';
+                        previewCommitHash.textContent = apiData.head.sha.substring(0, 7);
+                    }
+                }
+
+                // Create preview details
+                const details = `
+                    <h3>Preview Details</h3>
+                    <p><strong>Content Length:</strong> ${htmlContent.length} characters</p>
+                    <p><strong>Content Type:</strong> ${contentResponse.headers.get('content-type') || 'text/html'}</p>
+                    <p><strong>Last Modified:</strong> ${new Date(contentResponse.headers.get('last-modified') || Date.now()).toLocaleString()}</p>
+                `;
+                
+                previewDetails.innerHTML = details;
+
+                // Display the preview
+                previewStatus.textContent = 'Loaded successfully!';
+                previewInfo.style.display = 'block';
+                loadingElement.style.display = 'none';
+                previewContainer.style.display = 'block';
+
+            } catch (error) {
+                showError(`Failed to load preview: ${error.message}`);
+                console.error('Error loading preview:', error);
+            }
+        }
+
+        function showError(message) {
+            errorElement.textContent = `❌ ${message}`;
+            errorElement.style.display = 'block';
+            loadingElement.style.display = 'none';
+            console.error(message);
+        }
+    </script>
+</body>
+</html>
