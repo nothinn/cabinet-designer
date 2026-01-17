@@ -315,7 +315,8 @@
                     if (response.ok) {
                         const data = await response.json();
                         if (data.previews && data.previews.length > 0) {
-                            allPreviews = data.previews;
+                            // Filter to only show main branch since branch previews are not deployed
+                            allPreviews = data.previews.filter(preview => preview.name === 'main');
                             applyFilter();
                             loading.style.display = 'none';
                             return;
@@ -333,21 +334,13 @@
 
                     const branches = await apiResponse.json();
                     
-                    // Create preview data from branches
-                    allPreviews = branches.map(branch => ({
+                    // Only show main branch since branch previews are not deployed
+                    allPreviews = branches.filter(branch => branch.name === 'main').map(branch => ({
                         name: branch.name,
-                        url: `https://nothinn.github.io/cabinet-designer/${branch.name}/`,
-                        type: branch.name === 'main' ? 'production' : 'branch',
+                        url: `https://nothinn.github.io/cabinet-designer/`,
+                        type: 'production',
                         updated_at: branch.commit.commit.author.date
                     }));
-
-                    // Add PR previews (simplified - in real implementation this would fetch PRs too)
-                    allPreviews.push({
-                        name: 'example-pr',
-                        url: 'https://nothinn.github.io/cabinet-designer/example-pr/',
-                        type: 'pr',
-                        updated_at: new Date().toISOString()
-                    });
 
                     applyFilter();
                     
