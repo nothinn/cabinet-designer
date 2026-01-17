@@ -10,3 +10,4 @@ debug_*.py
 .temp_*.json
 !templates/*.json
 !templates/*.png
+!previews.json

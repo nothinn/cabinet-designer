@@ -34,9 +34,10 @@
 
 <div style="background: #667eea; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1001;">
     <h1 style="margin: 0; font-size: 1.5rem;">🚀 Cabinet Designer</h1>
-    <div style="display: flex; gap: 15px;">
+    <div style="display: flex; gap: 15px; align-items: center;">
         <a href="./" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background: rgba(255,255,255,0.2);">Main Site</a>
         <a href="preview-index.html" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background: rgba(255,255,255,0.2);">All Previews</a>
+        <span id="last-deploy" style="font-size: 0.8em; padding: 5px 10px; border-radius: 4px; background: rgba(255,255,255,0.2);">Last deploy: <span id="deploy-date">Loading...</span></span>
     </div>
 </div>
 
@@ -57,6 +58,7 @@
     import base64
     from simple_designer import CabinetDesigner
     from render_cabinet import render_cabinet_to_bytes
+    import subprocess
 
     # --- Initialize Designer ---
     designer = CabinetDesigner()
@@ -64,6 +66,18 @@
     if not designer.columns:
         designer.add_column(60)
         designer.add_column(80)
+
+    # Get last deployment date
+    def get_last_deploy_date():
+        try:
+            result = subprocess.run(['git', 'log', '--oneline', '-1', '--format="%cd"'], 
+                                  capture_output=True, text=True, check=True)
+            return result.stdout.strip()
+        except Exception as e:
+            return "Unknown"
+
+    last_deploy = get_last_deploy_date()
+    document.getElementById("deploy-date").innerText = last_deploy
 
     def update_ui():
         # Render image

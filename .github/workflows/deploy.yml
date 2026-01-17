@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-      - 'preview-**'
-  pull_request:
-    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
