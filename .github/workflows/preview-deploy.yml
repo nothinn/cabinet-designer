@@ -9,10 +9,8 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: "preview-${{ github.ref_name }}"
@@ -58,23 +56,10 @@ jobs:
           fi
           echo "Preview path: $PREVIEW_PATH"
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './build'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
       - name: Update preview index
-        if: always()
         run: |
-          # This would be handled by a separate workflow that regenerates the main preview index
-          echo "Preview deployed to: https://nothinn.github.io/cabinet-designer/${{ env.PREVIEW_PATH }}/"
+          # Preview is available via dynamic preview system
+          echo "Preview available via dynamic preview: https://nothinn.github.io/cabinet-designer/preview.html?branch=${{ env.PREVIEW_PATH }}"
           
       - name: Create preview notification PR
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
