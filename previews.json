@@ -4,21 +4,33 @@
       "name": "main",
       "url": "https://nothinn.github.io/cabinet-designer/",
       "type": "production",
-      "updated_at": "2026-01-17T09:07:31.644118Z"
+      "updated_at": "2026-01-17T21:13:36.196931Z"
+    },
+    {
+      "name": "add-claude-github-actions-1768648536658",
+      "url": "https://nothinn.github.io/cabinet-designer/add-claude-github-actions-1768648536658/",
+      "type": "branch",
+      "updated_at": "2026-01-17T21:13:36.196975Z"
     },
     {
       "name": "fix/pyscript-robustness",
       "url": "https://nothinn.github.io/cabinet-designer/fix/pyscript-robustness/",
       "type": "branch",
-      "updated_at": "2026-01-17T09:07:31.644140Z"
+      "updated_at": "2026-01-17T21:13:36.196984Z"
     },
     {
       "name": "fix-deployment",
       "url": "https://nothinn.github.io/cabinet-designer/fix-deployment/",
       "type": "branch",
-      "updated_at": "2026-01-17T09:07:31.644145Z"
+      "updated_at": "2026-01-17T21:13:36.196989Z"
+    },
+    {
+      "name": "update-preview-index-auto",
+      "url": "https://nothinn.github.io/cabinet-designer/update-preview-index-auto/",
+      "type": "branch",
+      "updated_at": "2026-01-17T21:13:36.196993Z"
     }
   ],
-  "generated_at": "2026-01-17T09:07:31.644156Z",
-  "count": 3
+  "generated_at": "2026-01-17T21:13:36.197017Z",
+  "count": 5
 }
