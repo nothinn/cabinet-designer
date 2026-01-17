@@ -1,0 +1,64 @@
+name: Update Preview Index
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Run every hour
+  workflow_dispatch:     # Allow manual triggering
+  workflow_run:
+    workflows: ["Deploy Branch/PR Previews"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Generate updated preview data
+        run: |
+          python generate-previews-json.py
+
+      - name: Commit and push updated preview index
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          # Check if previews.json was updated
+          if git diff --quiet previews.json; then
+            echo "No changes to preview index"
+          else
+            git add previews.json
+            git commit -m "🤖 Update preview index with latest data"
+            git push
+            echo "Preview index updated successfully"
+          fi
+
+      - name: Create preview index update PR
+        if: failure()
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "🤖 Update preview index with latest data"
+          title: "🤖 Preview Index Update"
+          body: |
+            Automated update to the preview index with the latest branch and PR information.
+            
+            This PR updates the `previews.json` file that powers the preview navigation interface.
+          branch: "update-preview-index-auto"
+          base: "main"
+          labels: "preview,automated"
+          draft: false
