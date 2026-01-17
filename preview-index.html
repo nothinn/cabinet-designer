@@ -307,7 +307,7 @@
                 `).join('');
             }
 
-            // Load previews from JSON
+            // Load previews from JSON or GitHub API
             async function loadPreviews() {
                 try {
                     // First try to load from local JSON
@@ -315,32 +315,66 @@
                     if (response.ok) {
                         const data = await response.json();
                         if (data.previews && data.previews.length > 0) {
-                            // Filter to only show main branch since branch previews are not deployed
-                            allPreviews = data.previews.filter(preview => preview.name === 'main');
+                            // Create dynamic preview URLs for all branches/PRs
+                            allPreviews = data.previews.map(preview => ({
+                                ...preview,
+                                // Use dynamic preview URL for non-main branches
+                                url: preview.name === 'main' 
+                                    ? 'https://nothinn.github.io/cabinet-designer/'
+                                    : `https://nothinn.github.io/cabinet-designer/preview.html?branch=${preview.name}`
+                            }));
                             applyFilter();
                             loading.style.display = 'none';
                             return;
                         }
                     }
 
-                    // If local JSON is empty or doesn't exist, try to fetch from GitHub API
+                    // If local JSON is empty or doesn't exist, fetch from GitHub API
                     const repo = 'nothinn/cabinet-designer';
                     const apiUrl = `https://api.github.com/repos/${repo}/branches`;
+                    const prUrl = `https://api.github.com/repos/${repo}/pulls?state=open`;
                     
-                    const apiResponse = await fetch(apiUrl);
-                    if (!apiResponse.ok) {
+                    // Fetch branches and PRs in parallel
+                    const [branchesResponse, prsResponse] = await Promise.all([
+                        fetch(apiUrl),
+                        fetch(prUrl)
+                    ]);
+
+                    if (!branchesResponse.ok || !prsResponse.ok) {
                         throw new Error('Failed to fetch from GitHub API');
                     }
 
-                    const branches = await apiResponse.json();
-                    
-                    // Only show main branch since branch previews are not deployed
-                    allPreviews = branches.filter(branch => branch.name === 'main').map(branch => ({
-                        name: branch.name,
-                        url: `https://nothinn.github.io/cabinet-designer/`,
-                        type: 'production',
-                        updated_at: branch.commit.commit.author.date
-                    }));
+                    const branches = await branchesResponse.json();
+                    const prs = await prsResponse.json();
+
+                    // Create preview data with dynamic URLs
+                    allPreviews = [
+                        // Main branch (production)
+                        ...branches
+                            .filter(branch => branch.name === 'main')
+                            .map(branch => ({
+                                name: branch.name,
+                                url: 'https://nothinn.github.io/cabinet-designer/',
+                                type: 'production',
+                                updated_at: branch.commit.commit.author.date
+                            })),
+                        // Other branches (dynamic previews)
+                        ...branches
+                            .filter(branch => branch.name !== 'main')
+                            .map(branch => ({
+                                name: branch.name,
+                                url: `https://nothinn.github.io/cabinet-designer/preview.html?branch=${branch.name}`,
+                                type: 'branch',
+                                updated_at: branch.commit.commit.author.date
+                            })),
+                        // Pull requests (dynamic previews)
+                        ...prs.map(pr => ({
+                            name: `pr-${pr.number}-${pr.head.ref}`,
+                            url: `https://nothinn.github.io/cabinet-designer/preview.html?pr=${pr.number}`,
+                            type: 'pr',
+                            updated_at: pr.updated_at
+                        }))
+                    ];
 
                     applyFilter();
                     
