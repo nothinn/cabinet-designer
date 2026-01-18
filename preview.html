@@ -210,9 +210,6 @@
         // Check if we have a branch or PR parameter
         if (!branch && !prNumber) {
             showError('No branch or pull request specified. Please use ?branch=branch-name or ?pr=pr-number');
-        } else if (branch === 'main') {
-            // Redirect to main site for main branch
-            window.location.href = 'https://nothinn.github.io/cabinet-designer/';
         } else {
             // Show loading info
             if (branch) {
