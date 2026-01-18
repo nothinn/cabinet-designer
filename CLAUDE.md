@@ -18,7 +18,7 @@ python web_designer.py
 # Render a cabinet config to PNG
 python render_cabinet.py <config.json> <output.png>
 
-# Generate preview metadata for GitHub Pages
+# (Optional) Generate preview metadata for offline use
 python generate-previews-json.py [--repo owner/repo] [--output file] [--token github_token]
 ```
 
@@ -40,7 +40,7 @@ python generate-previews-json.py [--repo owner/repo] [--output file] [--token gi
 
 - **pyscript.json**: Defines PyScript packages (Pillow) and file mappings
 - **templates/*.json**: Pre-configured cabinet designs with rendered PNG previews
-- **previews.json**: Generated metadata for available branch/PR previews
+- **previews.json**: (Optional) Can be pre-generated for offline use, but preview-index.html loads data on-demand from GitHub API
 
 ### Cabinet Data Structure
 
@@ -63,17 +63,19 @@ python generate-previews-json.py [--repo owner/repo] [--output file] [--token gi
 
 ## GitHub Actions Workflows
 
-- **preview-deploy.yml**: Deploys branch/PR previews on push
-- **update-preview-index.yml**: Regenerates previews.json hourly
-- **cleanup-previews.yml**: Weekly cleanup of closed PR/deleted branch previews
+- **preview-deploy.yml**: Posts preview links as comments on pull requests
+- **update-preview-index.yml**: (Disabled) Preview index now loads data on-demand from GitHub API
+- **cleanup-previews.yml**: (Disabled) No static preview directories to clean up
 
 ## Preview System
 
-The dynamic preview system loads content from `raw.githubusercontent.com` to work around GitHub CSP limitations:
-- Main site: `https://nothinn.github.io/cabinet-designer/`
-- Branch previews: `preview.html?branch=branch-name`
-- PR previews: `preview.html?pr=pr-number`
-- Preview index: `preview-index.html`
+The dynamic preview system is fully on-demand:
+- **Main site**: `https://nothinn.github.io/cabinet-designer/` (GitHub Pages serves from main branch automatically)
+- **Branch previews**: `preview.html?branch=branch-name` (loads content from `raw.githubusercontent.com`)
+- **PR previews**: `preview.html?pr=pr-number` (loads content from `raw.githubusercontent.com`)
+- **Preview index**: `preview-index.html` (fetches branch/PR list from GitHub API on page load)
+
+All previews load on-demand when visited - no static deployments or pre-generation needed.
 
 ## Dependencies
 

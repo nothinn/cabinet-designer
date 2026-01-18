@@ -2,8 +2,14 @@
 """
 Generate previews.json file for Cabinet Designer preview index.
 
+NOTE: This script is no longer used by the automated workflow.
+The preview-index.html now fetches branch/PR data on-demand from GitHub API.
+
+This script can still be used manually if you want to pre-generate a
+previews.json file for offline use or testing.
+
 This script fetches branch and PR information from GitHub API and generates
-a previews.json file that the preview-index.html can use to display available previews.
+a previews.json file with dynamic preview URLs.
 """
 
 import json
@@ -45,9 +51,10 @@ def get_github_pull_requests(repo_owner, repo_name, github_token=None):
         return []
 
 def generate_preview_data(branches, pull_requests):
-    """Generate preview data from branches and PRs."""
+    """Generate preview data from branches and PRs using dynamic preview URLs."""
     previews = []
-    
+    base_url = "https://nothinn.github.io/cabinet-designer"
+
     # Add production preview (main branch)
     main_branch = next((b for b in branches if b["name"] == "main"), None)
     if main_branch:
@@ -56,41 +63,41 @@ def generate_preview_data(branches, pull_requests):
             commit_date = main_branch["commit"].get("commit", {}).get("author", {}).get("date", main_branch["commit"].get("commit", {}).get("committer", {}).get("date", ""))
         else:
             commit_date = ""
-            
+
         previews.append({
             "name": "main",
-            "url": "https://nothinn.github.io/cabinet-designer/",
+            "url": f"{base_url}/",
             "type": "production",
             "updated_at": commit_date or datetime.utcnow().isoformat() + "Z"
         })
-    
-    # Add branch previews (excluding main)
+
+    # Add branch previews (excluding main) - use dynamic preview URLs
     for branch in branches:
         if branch["name"] == "main":
             continue
-        
+
         # Handle different branch data structures
         if "commit" in branch and isinstance(branch["commit"], dict):
             commit_date = branch["commit"].get("commit", {}).get("author", {}).get("date", branch["commit"].get("commit", {}).get("committer", {}).get("date", ""))
         else:
             commit_date = ""
-            
+
         previews.append({
             "name": branch["name"],
-            "url": f"https://nothinn.github.io/cabinet-designer/{branch['name']}/",
+            "url": f"{base_url}/preview.html?branch={branch['name']}",
             "type": "branch",
             "updated_at": commit_date or datetime.utcnow().isoformat() + "Z"
         })
-    
-    # Add PR previews
+
+    # Add PR previews - use dynamic preview URLs
     for pr in pull_requests:
         previews.append({
             "name": f"pr-{pr['number']}-{pr['head']['ref']}",
-            "url": f"https://nothinn.github.io/cabinet-designer/pr-{pr['number']}-{pr['head']['ref']}/",
+            "url": f"{base_url}/preview.html?pr={pr['number']}",
             "type": "pr",
             "updated_at": pr["updated_at"]
         })
-    
+
     return previews
 
 def write_previews_json(previews, output_file="previews.json"):
