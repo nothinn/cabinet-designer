@@ -304,22 +304,32 @@
         }
 
         function createDynamicPreview(originalHtml) {
-            // Just return the original HTML with a base tag to ensure resources load correctly
-            // Insert base tag after <head> if it exists
-            if (originalHtml.includes('<head>')) {
-                return originalHtml.replace('<head>', '<head>\n    <base href="https://nothinn.github.io/cabinet-designer/">');
+            // Add base tag for resource loading
+            let modifiedHtml = originalHtml;
+
+            if (modifiedHtml.includes('<head>')) {
+                modifiedHtml = modifiedHtml.replace('<head>', '<head>\n    <base href="https://nothinn.github.io/cabinet-designer/">');
             } else {
-                // If no head tag, wrap in basic HTML structure
-                return `<!DOCTYPE html>
+                modifiedHtml = `<!DOCTYPE html>
 <html>
 <head>
     <base href="https://nothinn.github.io/cabinet-designer/">
 </head>
 <body>
-${originalHtml}
+${modifiedHtml}
 </body>
 </html>`;
             }
+
+            // Add preview indicator below the "Cabinet Designer" heading
+            const previewSource = branch ? 'branch ' + branch : 'PR #' + prNumber;
+            const previewBadge = '<div style="background: #667eea; color: white; padding: 5px 10px; margin: 10px 0; border-radius: 4px; font-size: 0.9em; text-align: center;"><strong>PREVIEW:</strong> ' + previewSource + '</div>';
+
+            if (modifiedHtml.includes('<h1>Cabinet Designer</h1>')) {
+                modifiedHtml = modifiedHtml.replace('<h1>Cabinet Designer</h1>', '<h1>Cabinet Designer</h1>' + previewBadge);
+            }
+
+            return modifiedHtml;
         }
 
         function showError(message) {
