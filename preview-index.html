@@ -338,7 +338,7 @@
                                 name: branch.name,
                                 url: `${baseUrl}/`,
                                 type: 'production',
-                                updated_at: branch.commit.commit.author.date
+                                updated_at: branch.commit?.commit?.author?.date || new Date().toISOString()
                             })),
                         // Other branches (dynamic previews)
                         ...branches
@@ -347,7 +347,7 @@
                                 name: branch.name,
                                 url: `${baseUrl}/preview.html?branch=${branch.name}`,
                                 type: 'branch',
-                                updated_at: branch.commit.commit.author.date
+                                updated_at: branch.commit?.commit?.author?.date || new Date().toISOString()
                             })),
                         // Pull requests (dynamic previews)
                         ...prs.map(pr => ({
