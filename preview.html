@@ -301,6 +301,7 @@
         }
 
         function createDynamicPreview(originalHtml) {
+            const previewSource = branch ? 'branch ' + branch : 'PR #' + prNumber;
             return `<!DOCTYPE html>
 <html>
 <head>
@@ -332,12 +333,12 @@
 <body>
     <!-- Preview Info Banner -->
     <div style="background: #667eea; color: white; padding: 10px 20px; text-align: center; position: sticky; top: 0; z-index: 1001;">
-        <strong>PREVIEW MODE:</strong> This is a dynamic preview of ${branch ? `branch ${branch}` : `PR #${prNumber}`}. Some features may not work fully.
+        <strong>PREVIEW MODE:</strong> This is a dynamic preview of ${previewSource}. Some features may not work fully.
     </div>
-    
+
     <!-- Original Content -->
     ${originalHtml}
-    
+
     <script>
         // Fix relative paths for PyScript and other resources
         document.addEventListener('DOMContentLoaded', function() {
