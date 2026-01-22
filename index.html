@@ -72,7 +72,8 @@
         # We will use the 'py-click' attribute approach if available, or just global expose.
 
     def generate_sidebar_html():
-        html = "<h1>Cabinet Designer</h1>"
+        # Use concatenation to avoid preview.html string replacement affecting Python code
+        html = "<h1>" + "Cabinet Designer" + "</h1>"
         
         # Global Settings
         html += f"""
