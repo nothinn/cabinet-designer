@@ -348,9 +348,11 @@ ${modifiedHtml}
             // Inject PyScript config inline with absolute file paths
             if (pyscriptConfig) {
                 // Remove the config="pyscript.json" attribute and inject inline config
+                const configJson = JSON.stringify(pyscriptConfig, null, 2);
+                const configScript = `<script type="py-config">\n${configJson}\n</script>\n<script type="py">`;
                 modifiedHtml = modifiedHtml.replace(
                     /<script type="py" config="pyscript\.json">/,
-                    '<script type="py-config">' + JSON.stringify(pyscriptConfig) + '</script>\n<script type="py">'
+                    configScript
                 );
             }
 
