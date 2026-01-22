@@ -320,7 +320,8 @@ ${modifiedHtml}
 
             // Add preview indicator below the "Cabinet Designer" heading
             const previewSource = branch ? 'branch ' + branch : 'PR #' + prNumber;
-            const previewBadge = '<div style="background: #667eea; color: white; padding: 5px 10px; margin: 10px 0; border-radius: 4px; font-size: 0.9em; text-align: center;"><strong>PREVIEW:</strong> ' + previewSource + '</div>';
+            // Use single quotes for style attribute to avoid breaking Python double-quoted strings
+            const previewBadge = "<div style='background: #667eea; color: white; padding: 5px 10px; margin: 10px 0; border-radius: 4px; font-size: 0.9em; text-align: center;'><strong>PREVIEW:</strong> " + previewSource + "</div>";
 
             if (modifiedHtml.includes('<h1>Cabinet Designer</h1>')) {
                 modifiedHtml = modifiedHtml.replace('<h1>Cabinet Designer</h1>', '<h1>Cabinet Designer</h1>' + previewBadge);
