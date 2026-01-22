@@ -45,11 +45,8 @@
 <script type="py" config="pyscript.json">
     import js
     from pyscript import document
-    import io
-    import base64
     from simple_designer import CabinetDesigner
-    from render_cabinet import render_cabinet_to_bytes
-    import subprocess
+    from render_cabinet_svg import render_cabinet_to_svg
 
     # --- Initialize Designer ---
     designer = CabinetDesigner()
@@ -60,9 +57,9 @@
 
     def update_ui():
         # Render image
-        img_bytes = render_cabinet_to_bytes(designer)
-        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
-        document.getElementById("preview-image").src = f"data:image/png;base64,{img_base64}"
+        svg_string = render_cabinet_to_svg(designer)
+        # Use URL encoding for inline SVG data URL
+        document.getElementById("preview-image").src = f"data:image/svg+xml;charset=utf-8,{js.encodeURIComponent(svg_string)}"
         
         # Render Sidebar HTML
         html = generate_sidebar_html()
