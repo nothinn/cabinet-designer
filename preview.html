@@ -257,6 +257,14 @@
                     loadingStatus.textContent = `Fetching PR #${prNumber} (${headBranch}) from GitHub...`;
                 }
 
+                // Calculate base URL for resource loading
+                let baseUrl;
+                if (branch) {
+                    baseUrl = `https://raw.githubusercontent.com/${repo}/${branch}/`;
+                } else {
+                    baseUrl = `https://raw.githubusercontent.com/${headRepo}/${headBranch}/`;
+                }
+
                 // Fetch the content
                 loadingStatus.textContent = 'Fetching content...';
                 const contentResponse = await fetch(contentUrl);
@@ -266,6 +274,25 @@
                 }
 
                 const htmlContent = await contentResponse.text();
+
+                // Fetch and modify pyscript.json to use absolute URLs
+                loadingStatus.textContent = 'Fetching PyScript configuration...';
+                const pyscriptConfigUrl = baseUrl + 'pyscript.json';
+                const pyscriptResponse = await fetch(pyscriptConfigUrl);
+                let pyscriptConfig = null;
+                if (pyscriptResponse.ok) {
+                    pyscriptConfig = await pyscriptResponse.json();
+                    // Convert relative file paths to absolute URLs
+                    if (pyscriptConfig.files) {
+                        const absoluteFiles = {};
+                        for (const [key, value] of Object.entries(pyscriptConfig.files)) {
+                            // Convert relative path to absolute URL
+                            const absoluteUrl = value.startsWith('./') ? baseUrl + value.substring(2) : baseUrl + value;
+                            absoluteFiles[key] = absoluteUrl;
+                        }
+                        pyscriptConfig.files = absoluteFiles;
+                    }
+                }
 
                 // Get additional info from GitHub API
                 const apiResponse = await fetch(apiUrl);
@@ -282,14 +309,7 @@
                 }
 
                 // Create a dynamic HTML page with the content
-                // Calculate base URL for resource loading
-                let baseUrl;
-                if (branch) {
-                    baseUrl = `https://raw.githubusercontent.com/${repo}/${branch}/`;
-                } else {
-                    baseUrl = `https://raw.githubusercontent.com/${headRepo}/${headBranch}/`;
-                }
-                const dynamicHtml = createDynamicPreview(htmlContent, baseUrl);
+                const dynamicHtml = createDynamicPreview(htmlContent, baseUrl, pyscriptConfig);
 
                 // Display the preview
                 previewStatus.textContent = 'Loaded successfully!';
@@ -307,7 +327,7 @@
             }
         }
 
-        function createDynamicPreview(originalHtml, baseUrl) {
+        function createDynamicPreview(originalHtml, baseUrl, pyscriptConfig) {
             // Add base tag for resource loading from the correct branch
             let modifiedHtml = originalHtml;
 
@@ -323,6 +343,15 @@
 ${modifiedHtml}
 </body>
 </html>`;
+            }
+
+            // Inject PyScript config inline with absolute file paths
+            if (pyscriptConfig) {
+                // Remove the config="pyscript.json" attribute and inject inline config
+                modifiedHtml = modifiedHtml.replace(
+                    /<script type="py" config="pyscript\.json">/,
+                    '<script type="py-config">' + JSON.stringify(pyscriptConfig) + '</script>\n<script type="py">'
+                );
             }
 
             // Add preview indicator below the "Cabinet Designer" heading
