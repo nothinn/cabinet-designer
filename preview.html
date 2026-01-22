@@ -232,7 +232,7 @@
             try {
                 // Get the raw content from GitHub
                 const repo = 'nothinn/cabinet-designer';
-                let contentUrl, apiUrl;
+                let contentUrl, apiUrl, headBranch, headRepo;
 
                 if (branch) {
                     // For branches, get the index.html from the branch
@@ -246,8 +246,8 @@
                         throw new Error(`Failed to fetch PR #${prNumber} from GitHub API`);
                     }
                     const prData = await prResponse.json();
-                    const headBranch = prData.head.ref;
-                    const headRepo = prData.head.repo.full_name;
+                    headBranch = prData.head.ref;
+                    headRepo = prData.head.repo.full_name;
                     
                     contentUrl = `https://raw.githubusercontent.com/${headRepo}/${headBranch}/index.html`;
                     apiUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}`;
@@ -282,7 +282,14 @@
                 }
 
                 // Create a dynamic HTML page with the content
-                const dynamicHtml = createDynamicPreview(htmlContent);
+                // Calculate base URL for resource loading
+                let baseUrl;
+                if (branch) {
+                    baseUrl = `https://raw.githubusercontent.com/${repo}/${branch}/`;
+                } else {
+                    baseUrl = `https://raw.githubusercontent.com/${headRepo}/${headBranch}/`;
+                }
+                const dynamicHtml = createDynamicPreview(htmlContent, baseUrl);
 
                 // Display the preview
                 previewStatus.textContent = 'Loaded successfully!';
@@ -300,17 +307,17 @@
             }
         }
 
-        function createDynamicPreview(originalHtml) {
-            // Add base tag for resource loading
+        function createDynamicPreview(originalHtml, baseUrl) {
+            // Add base tag for resource loading from the correct branch
             let modifiedHtml = originalHtml;
 
             if (modifiedHtml.includes('<head>')) {
-                modifiedHtml = modifiedHtml.replace('<head>', '<head>\n    <base href="https://nothinn.github.io/cabinet-designer/">');
+                modifiedHtml = modifiedHtml.replace('<head>', '<head>\n    <base href="' + baseUrl + '">');
             } else {
                 modifiedHtml = `<!DOCTYPE html>
 <html>
 <head>
-    <base href="https://nothinn.github.io/cabinet-designer/">
+    <base href="${baseUrl}">
 </head>
 <body>
 ${modifiedHtml}
